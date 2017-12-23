@@ -9,20 +9,25 @@ namespace Tactics.Grid {
 
     public class CreateGrid : MonoBehaviour {
 
-        public struct pathInformation {
-            public float costToGetToTarget;
-            public List<Cell> pathToGetToTarget;
+        public struct movementLocationsInfo {
 
-            public pathInformation(float costToGetToTarget, List<Cell> pathToGetToTarget) {
-                this.costToGetToTarget = costToGetToTarget;
-                this.pathToGetToTarget = pathToGetToTarget;
+            public Dictionary<Cell, Cell> cameFrom;
+            public Dictionary<Cell, float> costToGoThroughNode;
+            //TODO create a list of characters on the possible movement cells. This well help treat characters as obstacles
+            //but keep track of the characaters as obstacles to handle other scenarios like clicking an enemy while they are in range
+            public HashSet<Cell> cellsWithCharacter;
+
+            public movementLocationsInfo(Dictionary<Cell, Cell> cameFromInfo, Dictionary<Cell, float> costToGoThroughNodeInfo, HashSet<Cell> cellsWithCharacterInfo) {
+                cameFrom = cameFromInfo;
+                costToGoThroughNode = costToGoThroughNodeInfo;
+                cellsWithCharacter = cellsWithCharacterInfo;
             }
+
         }
-        
+
         private LayerMask CELL_LAYER_MASK;
-        [SerializeField]
-        public static float cellSize = 1;
-        private static Vector3 cellVectorSize;
+        [SerializeField] public const float cellSize = 1;
+        //private static Vector3 cellVectorSize;
 
         [SerializeField] private GameObject cellObject;
 
@@ -34,10 +39,11 @@ namespace Tactics.Grid {
         private Vector3[] diagonalVectors = { Vector3.forward + Vector3.right, Vector3.forward + Vector3.left,
                                               Vector3.back + Vector3.right, Vector3.back + Vector3.left};
 
+        
         // Use this for initialization
         void Start() {
             CELL_LAYER_MASK = 1 << (int) Layer.CELL_LAYER;
-            cellVectorSize = Vector3.one * cellSize;
+            //cellVectorSize = Vector3.one * cellSize;
             
             replaceBlocksWithGrid();
 
@@ -90,9 +96,16 @@ namespace Tactics.Grid {
                 cell.linkCellTo(cellHit, isDiagnol);
             }
         }
-        
 
-        public static pathInformation getCellPathsInfo(Cell start, Cell goal) {
+        /// <summary>
+        /// Returns information regarding every cell that is within the maxMovementDistance and sends that information back as a struct
+        /// containing the cost to get to each node and the node that comes right before each node.
+        /// </summary>
+        /// <param name="start"></param>
+        /// The node that is the center of the search through nodes
+        /// <param name="maxMovementDistance"></param>
+        /// <returns></returns>
+        public static movementLocationsInfo getPossibleMovementLocations(Cell start, float maxMovementDistance) {
             HashSet<Cell> evaluatedCells = new HashSet<Cell>();
             HashSet<Cell> discoveredCells = new HashSet<Cell> { start };
 
@@ -100,8 +113,11 @@ namespace Tactics.Grid {
             Dictionary<Cell, float> costToGoalThroughNode = new Dictionary<Cell, float>();
             costToGoalThroughNode.Add(start, 0);
 
+            HashSet<Cell> cellsWithCharacter = new HashSet<Cell>();
+            
             while (discoveredCells.Count != 0) {
                 Cell currentCell = null;
+                //TODO for more efficiency, change this to a regular for loop
                 foreach (var cellPair in costToGoalThroughNode.OrderBy(x => x.Value)) {
                     if (discoveredCells.Contains(cellPair.Key)) {
                         currentCell = cellPair.Key;
@@ -110,31 +126,37 @@ namespace Tactics.Grid {
                 }
                 if (currentCell == null)
                     throw new System.Exception("No current cells");
-                if (currentCell == goal)
-                    return new pathInformation(costToGoalThroughNode[goal], getPathFromLinks(cameFrom, currentCell));
-                if (!discoveredCells.Contains(currentCell))
+                if (!discoveredCells.Contains(currentCell)) //TODO Shouldn't ever happen
                     throw new System.Exception("Cell not in discoveredCells");
+                
                 discoveredCells.Remove(currentCell);
-                evaluatedCells.Add(currentCell);
-                checkAndAddDiscoveredCells(evaluatedCells, discoveredCells, cameFrom, costToGoalThroughNode, currentCell);
+                if (!evaluatedCells.Contains(currentCell)) {
+                    evaluatedCells.Add(currentCell);
+                }
+                checkAndAddDiscoveredCells(evaluatedCells, discoveredCells, cameFrom, costToGoalThroughNode, cellsWithCharacter, currentCell, maxMovementDistance);
             }
-            throw new System.Exception("No paths found");
-
+            foreach (var cell in discoveredCells) {
+                print(cell);
+            }
+            return new movementLocationsInfo(cameFrom, costToGoalThroughNode, cellsWithCharacter);
         }
 
-        private static void checkAndAddDiscoveredCells(HashSet<Cell> evaluatedCells, HashSet<Cell> discoveredCells, Dictionary<Cell, Cell> cameFrom, Dictionary<Cell, float> costToGoalThroughNode, Cell currentCell) {
-            HashSet<Cell> allCellsToDiscover = new HashSet<Cell>(currentCell.getOutAdjacentCells());
-            allCellsToDiscover.UnionWith(currentCell.getOutDiagonalCells());
-           
+        private static void checkAndAddDiscoveredCells(HashSet<Cell> evaluatedCells, HashSet<Cell> discoveredCells, Dictionary<Cell, Cell> cameFrom, Dictionary<Cell, float> costToGoalThroughNode, HashSet<Cell> cellsWithCharacter, Cell currentCell, float maxMovementDistance) {
+            HashSet<Cell> allCellsToDiscover = currentCell.getAllSurroundingCells();
+
             foreach (Cell neighbor in allCellsToDiscover) {
-                if (evaluatedCells.Contains(neighbor)) {
+                bool isInDiagonal = currentCell.getOutDiagonalCells().Contains(neighbor);
+                float distanceFromStartToNeighbor = costToGoalThroughNode[currentCell] + (isInDiagonal ? Mathf.Sqrt(2) : 1);
+
+                if (evaluatedCells.Contains(neighbor) || neighbor.getCharacterOnCell() || distanceFromStartToNeighbor > maxMovementDistance) {
                     continue;
+                }
+                if (neighbor.getCharacterOnCell() && !cellsWithCharacter.Contains(neighbor)) {
+                    cellsWithCharacter.Add(neighbor);
                 }
                 if (!discoveredCells.Contains(neighbor)) {
                     discoveredCells.Add(neighbor);
                 }
-                float distanceFromStartToNeighbor = costToGoalThroughNode[currentCell] + 1;
-                if (currentCell.getOutDiagonalCells().Contains(neighbor)) { distanceFromStartToNeighbor += (Mathf.Sqrt(2) - 1); }
                 if (costToGoalThroughNode.ContainsKey(neighbor) && distanceFromStartToNeighbor >= costToGoalThroughNode[neighbor]) {
                     continue;
                 }
@@ -143,13 +165,14 @@ namespace Tactics.Grid {
             }
         }
 
-        private static List<Cell> getPathFromLinks(Dictionary<Cell, Cell> cellLinks, Cell currentCell) {
-            List<Cell> cellsInPath = new List<Cell> { currentCell };
-            
-            while (cellLinks.ContainsKey(currentCell)) {
-                currentCell = cellLinks[currentCell];
-                cellsInPath.Add(currentCell);
+        public static List<Cell> getPathFromLinks(movementLocationsInfo cellLinks, Cell currentCell, Cell goal) {
+            List<Cell> cellsInPath = new List<Cell> { goal };
+            Cell currentCellInPath = goal;
+            while (cellLinks.cameFrom.ContainsKey(currentCellInPath) && currentCellInPath != currentCell) {
+                currentCellInPath = cellLinks.cameFrom[currentCellInPath];
+                cellsInPath.Add(currentCellInPath);
             }
+            cellsInPath.Reverse();
             return cellsInPath;
         }
 
