@@ -67,12 +67,10 @@ namespace Tactics.Characters
 			{
 				HandleAirborneMovement();
 			}
+            
 
-			ScaleCapsuleForCrouching(crouch);
-			PreventStandingInLowHeadroom();
-
-			// send input and other state parameters to the animator
-			UpdateAnimator(move);
+            // send input and other state parameters to the animator
+            UpdateAnimator(move);
 		}
 
 
@@ -212,6 +210,7 @@ namespace Tactics.Characters
 			{
 				m_GroundNormal = hitInfo.normal;
 				m_IsGrounded = true;
+                
 				m_Animator.applyRootMotion = true;
 			}
 			else

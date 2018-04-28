@@ -24,13 +24,13 @@ namespace Tactics.Controller {
         void Update() {
             if (factionTurn == Turn.Player && playerController.getTurnFinished() == true) {
                 //Move this out of a loop so that this won't happen when they are already on their respective states
-                enemyController.resetStates();
+                enemyController.ResetCharacterTurn();
                 switchTurnTo(Turn.Enemy);
                 factionTurn = Turn.Enemy;
             }
             else if (factionTurn == Turn.Enemy && enemyController.getTurnFinished() == true) {
                 switchTurnTo(Turn.Player);
-                playerController.resetCharacterTurn();
+                playerController.ResetCharacterTurn();
                 factionTurn = Turn.Player;
             }
         }

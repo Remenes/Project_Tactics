@@ -9,10 +9,11 @@ namespace Tactics.Characters {
 
         [SerializeField] private int damage;
         [SerializeField] private float range;
+        [SerializeField] AnimationClip attackAnimation;
 
         public int weaponDamage { get { return damage; } }
         public float weaponRange { get { return range; } }
-
+        public AnimationClip GetAnimationClip () { return attackAnimation; } 
     }
 
 }

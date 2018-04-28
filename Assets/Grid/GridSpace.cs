@@ -7,17 +7,18 @@ namespace Tactics.Grid {
 
     public enum Layer { CELL_LAYER = 8 }
 
-    public class CreateGrid : MonoBehaviour {
+    public class GridSpace : MonoBehaviour {
 
-        public struct movementLocationsInfo {
+        //TODO this should also contain the starting cell
+        public struct MovementLocationsInfo {
 
             public Dictionary<Cell, Cell> cameFrom;
             public Dictionary<Cell, float> costToGoThroughNode;
-            //TODO create a list of characters on the possible movement cells. This well help treat characters as obstacles
+            //Creates a list of characters on the possible movement cells. This well help treat characters as obstacles
             //but keep track of the characaters as obstacles to handle other scenarios like clicking an enemy while they are in range
             public HashSet<Cell> cellsWithCharacter;
 
-            public movementLocationsInfo(Dictionary<Cell, Cell> cameFromInfo, Dictionary<Cell, float> costToGoThroughNodeInfo, HashSet<Cell> cellsWithCharacterInfo) {
+            public MovementLocationsInfo(Dictionary<Cell, Cell> cameFromInfo, Dictionary<Cell, float> costToGoThroughNodeInfo, HashSet<Cell> cellsWithCharacterInfo) {
                 cameFrom = cameFromInfo;
                 costToGoThroughNode = costToGoThroughNodeInfo;
                 cellsWithCharacter = cellsWithCharacterInfo;
@@ -101,11 +102,9 @@ namespace Tactics.Grid {
         /// Returns information regarding every cell that is within the maxMovementDistance and sends that information back as a struct
         /// containing the cost to get to each node and the node that comes right before each node.
         /// </summary>
-        /// <param name="start"></param>
-        /// The node that is the center of the search through nodes
-        /// <param name="maxMovementDistance"></param>
-        /// <returns></returns>
-        public static movementLocationsInfo getPossibleMovementLocations(Cell start, float maxMovementDistance) {
+        /// <param name="start"> The node that is the center of the search through nodes </param>
+        /// <param name="maxMovementDistance"> The total distance a character can move</param>
+        public static MovementLocationsInfo GetPossibleMovementLocations(Cell start, float maxMovementDistance) {
             HashSet<Cell> evaluatedCells = new HashSet<Cell>();
             HashSet<Cell> discoveredCells = new HashSet<Cell> { start };
 
@@ -117,7 +116,6 @@ namespace Tactics.Grid {
             
             while (discoveredCells.Count != 0) {
                 Cell currentCell = null;
-                //TODO for more efficiency, change this to a regular for loop
                 foreach (var cellPair in costToGoalThroughNode.OrderBy(x => x.Value)) {
                     if (discoveredCells.Contains(cellPair.Key)) {
                         currentCell = cellPair.Key;
@@ -126,33 +124,43 @@ namespace Tactics.Grid {
                 }
                 if (currentCell == null)
                     throw new System.Exception("No current cells");
-                if (!discoveredCells.Contains(currentCell)) //TODO Shouldn't ever happen
-                    throw new System.Exception("Cell not in discoveredCells");
                 
                 discoveredCells.Remove(currentCell);
                 if (!evaluatedCells.Contains(currentCell)) {
                     evaluatedCells.Add(currentCell);
                 }
-                checkAndAddDiscoveredCells(evaluatedCells, discoveredCells, cameFrom, costToGoalThroughNode, cellsWithCharacter, currentCell, maxMovementDistance);
+                CheckAndAddDiscoveredCells(evaluatedCells, discoveredCells, cameFrom, costToGoalThroughNode, currentCell, maxMovementDistance, cellsWithCharacter);
             }
-            foreach (var cell in discoveredCells) {
-                print(cell);
-            }
-            return new movementLocationsInfo(cameFrom, costToGoalThroughNode, cellsWithCharacter);
+            return new MovementLocationsInfo(cameFrom, costToGoalThroughNode, cellsWithCharacter);
         }
 
-        private static void checkAndAddDiscoveredCells(HashSet<Cell> evaluatedCells, HashSet<Cell> discoveredCells, Dictionary<Cell, Cell> cameFrom, Dictionary<Cell, float> costToGoalThroughNode, HashSet<Cell> cellsWithCharacter, Cell currentCell, float maxMovementDistance) {
+        /// <summary>
+        /// Only call this function if the script is making it's own path finding AI (Ex. To get the full path to a character)
+        /// </summary>
+        /// <param name="evaluatedCells"> Set of cells already evaluvated </param>
+        /// <param name="discoveredCells"> Set of cells already discovered </param>
+        /// <param name="cameFrom"> Dictionary with keys of a cell and value of whichever cell lead to it </param>
+        /// <param name="costToGoalThroughNode"> Dictionary with keys of a cell and value of the distance it took to get there </param>
+        /// <param name="cellsWithCharacter"> Set of cells that have a character on them: Adds on to this list as it discovers cells </param>
+        /// <param name="currentCell"></param>
+        /// <param name="maxMovementDistance"></param>
+        public static void CheckAndAddDiscoveredCells(HashSet<Cell> evaluatedCells, HashSet<Cell> discoveredCells, Dictionary<Cell, Cell> cameFrom, Dictionary<Cell, float> costToGoalThroughNode, Cell currentCell, float maxMovementDistance, HashSet<Cell> cellsWithCharacter) {
             HashSet<Cell> allCellsToDiscover = currentCell.getAllSurroundingCells();
 
             foreach (Cell neighbor in allCellsToDiscover) {
                 bool isInDiagonal = currentCell.getOutDiagonalCells().Contains(neighbor);
                 float distanceFromStartToNeighbor = costToGoalThroughNode[currentCell] + (isInDiagonal ? Mathf.Sqrt(2) : 1);
 
-                if (evaluatedCells.Contains(neighbor) || neighbor.getCharacterOnCell() || distanceFromStartToNeighbor > maxMovementDistance) {
+                if (evaluatedCells.Contains(neighbor) || distanceFromStartToNeighbor > maxMovementDistance) {
                     continue;
                 }
-                if (neighbor.getCharacterOnCell() && !cellsWithCharacter.Contains(neighbor)) {
-                    cellsWithCharacter.Add(neighbor);
+                if (cellsWithCharacter != null) {
+                    if (neighbor.getCharacterOnCell()) {
+                        if (!cellsWithCharacter.Contains(neighbor)) {
+                            cellsWithCharacter.Add(neighbor);
+                        }
+                        continue;
+                    }
                 }
                 if (!discoveredCells.Contains(neighbor)) {
                     discoveredCells.Add(neighbor);
@@ -165,7 +173,10 @@ namespace Tactics.Grid {
             }
         }
 
-        public static List<Cell> getPathFromLinks(movementLocationsInfo cellLinks, Cell currentCell, Cell goal) {
+        //TODO linked with the struct: take out the currentCell in the parameter (It should be given in the cellLinks info)
+        public static List<Cell> GetPathFromLinks(MovementLocationsInfo cellLinks, Cell currentCell, Cell goal) {
+            if (!cellLinks.cameFrom.ContainsKey(goal))
+                return null;
             List<Cell> cellsInPath = new List<Cell> { goal };
             Cell currentCellInPath = goal;
             while (cellLinks.cameFrom.ContainsKey(currentCellInPath) && currentCellInPath != currentCell) {

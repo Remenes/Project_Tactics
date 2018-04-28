@@ -11,16 +11,17 @@ namespace Tactics.CameraUI {
 
         LineRenderer movementLine;
         PlayerController playerControl;
-        
-        private Cell currentCell;
+        Tactics.Characters.Character playerCharacter;
+
         private Color? initialCellColor = null;
 
-        [SerializeField] EnemyController enemyControl;
+        [SerializeField] private EnemyController enemyControl;
 
         // Use this for initialization
         void Start() {
             movementLine = GetComponent<LineRenderer>();
             playerControl = GetComponent<PlayerController>();
+            playerCharacter = playerControl.getCurrentPlayerCharacter();
 
             registerCameraRaycast();
         }
@@ -42,7 +43,7 @@ namespace Tactics.CameraUI {
 
             drawMovementLine(cell);
             var playerCharacter = playerControl.getCurrentPlayerCharacter();
-            if (playerCharacter.getPossibleMovementLocations().costToGoThroughNode.ContainsKey(cell)) {
+            if (playerCharacter.GetPossibleMovementLocations().costToGoThroughNode.ContainsKey(cell)) {
                 
             }
 
@@ -55,14 +56,15 @@ namespace Tactics.CameraUI {
 
         // Update is called once per frame
         void Update() {
-            highlightPossibleMovementLocations();
+
+            //highlightPossibleMovementLocations();
         }
 
         //TODO remove this method
         private List<Cell> highlightedCells = new List<Cell>();
         private void highlightPossibleMovementLocations() {
             var playerCharacter = /*playerControl.getCurrentPlayerCharacter() */enemyControl.getCurrentEnemyCharacter();
-            if (!playerCharacter.isIDLE() && playerCharacter.getCharacterState() != Characters.State.FINISHED) { 
+            if (!playerCharacter.isIDLE() && playerCharacter.isFinished()) { 
                 foreach (Cell cell in highlightedCells) {
                     Material movementLocationMaterial = cell.GetComponent<Renderer>().material;
                     movementLocationMaterial.color = initialCellColor.HasValue ? initialCellColor.Value : Color.blue;
@@ -73,7 +75,7 @@ namespace Tactics.CameraUI {
             if (!playerCharacter.getCellLocation()) {
                 return;
             }
-            CreateGrid.movementLocationsInfo locationsInfo = playerCharacter.getPossibleMovementLocations();
+            GridSpace.MovementLocationsInfo locationsInfo = playerCharacter.GetPossibleMovementLocations();
             foreach (KeyValuePair<Cell, float> cellInfo in locationsInfo.costToGoThroughNode) {
                 Material movementLocationMaterial = cellInfo.Key.GetComponent<Renderer>().material;
                 movementLocationMaterial.color = Color.red;
@@ -82,31 +84,46 @@ namespace Tactics.CameraUI {
         }
 
         private void drawMovementLine(Cell endLocation) {
-            var playerCharacter = playerControl.getCurrentPlayerCharacter();
-            if (!playerCharacter.isIDLE()) {
+            if (!playerCharacter.isIDLE() || playerCharacter.isFinished()) {
                 movementLine.enabled = false;
                 return;
             }
-                
             movementLine.enabled = true;
 
-            List<Cell> cellPath = CreateGrid.getPathFromLinks(playerCharacter.getPossibleMovementLocations(), playerCharacter.getCellLocation(), endLocation);
-            if (endLocation.getCharacterOnCell()) {
-                cellPath = playerControl.findPathTowardsAdjacentCharacter(endLocation);
-            }
-            if (cellPath == null) {
-                movementLine.enabled = false;
-                return;
-            }
+            List<Cell> cellPath = totalPathLink(endLocation);
 
             int numVertices = cellPath.Count;
             movementLine.positionCount = numVertices;
-            
             for (int i = 0; i < numVertices; ++i) { 
                 Vector3 vertexPosition = cellPath[i].transform.position;
-                vertexPosition.y += Tactics.Grid.CreateGrid.cellSize / 2;
+                vertexPosition.y += GridSpace.cellSize / 2;
                 movementLine.SetPosition(i, vertexPosition);
             }
+        }
+
+        private List<Cell> totalPathLink(Cell endLocation) {
+
+            List<Cell> currentCellPath = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), endLocation);
+            List<List<Cell>> movementPaths = playerCharacter.GetMovementPathsInfo();
+            List<Cell> cellPath = cellsFromCurrentMovementPath();
+            
+            if (currentCellPath != null && !endLocation.getCharacterOnCell() && playerCharacter.CanMove()) {
+                cellPath.AddRange(currentCellPath);
+            }
+            return cellPath;
+        }
+
+        private List<Cell> cellsFromCurrentMovementPath() {
+            List<List<Cell>> movementPaths = playerCharacter.GetMovementPathsInfo();
+            List<Cell> cellPath = new List<Cell>();
+            if (movementPaths.Count > 0) {
+                foreach (List<Cell> path in movementPaths) {
+                    if (path != null) {
+                        cellPath.AddRange(path);
+                    }
+                }
+            }
+            return cellPath;
         }
 
     }

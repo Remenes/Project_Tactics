@@ -35,29 +35,37 @@ namespace Tactics.Controller {
         }
 
         void Update() {
-            if (playerCharacter.getCharacterState() == State.FINISHED) {
+            if (playerCharacter.GetCharacterState() == State.FINISHED) {
                 turnFinished = true;
+            }
+            if (!turnFinished) {
+                checkExecuteActions();
             }
         }
 
         private void movePlayerToNewCell(Cell newCellLocation) {
+            if (turnFinished || playerCharacter.GetCharacterState() != State.IDLE)
+                return;
+
             if (Mouse.LeftClicked) {
                 Character target = newCellLocation.getCharacterOnCell();
                 if (target != null) {
-                    List<Cell> pathTowardsTarget = findPathTowardsAdjacentCharacter(newCellLocation);
-                    if (pathTowardsTarget != null) {
-                        playerCharacter.setAttackTarget(pathTowardsTarget, target);
-                        playerCharacter.resetPossibleMovementLocations();
-                        return;
+                    if (playerCharacter.CanAttackTarget(target)) {
+                        playerCharacter.QueueAttackTarget(target);
                     }
                 }
-                else if (playerCharacter.isWithinMovementRangeOf(newCellLocation)) {
-
-                    List<Cell> path = CreateGrid.getPathFromLinks(playerCharacter.getPossibleMovementLocations(), playerCharacter.getCellLocation(), newCellLocation);
-
-                    playerCharacter.setMovementPath(path);
-                    playerCharacter.resetPossibleMovementLocations();
+                else if (playerCharacter.CanMove() && playerCharacter.isWithinMovementRangeOf(newCellLocation)) {
+                    List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), newCellLocation);
+                    playerCharacter.QueueMovementAction(path);
                 }
+            }
+        }
+
+        private void checkExecuteActions() {
+            //TODO make an "executing" variable in this class that prevents this from being called multiple times
+            if (Input.GetKeyDown(KeyCode.Space)) {
+                //TODO consider that this won't need to start a coroutine
+                StartCoroutine(playerCharacter.ExecuteActions());
             }
         }
 
@@ -68,16 +76,15 @@ namespace Tactics.Controller {
              */
             foreach (Cell cell in surroundingCells) {
                 if (playerCharacter.isWithinMovementRangeOf(cell)) {
-                    return CreateGrid.getPathFromLinks(playerCharacter.getPossibleMovementLocations(), playerCharacter.getCellLocation(), cell);
+                    return GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), cell);
                 }
             }
             return null;
         }
 
-        public void resetCharacterTurn() {
+        public void ResetCharacterTurn() {
             turnFinished = false;
-            playerCharacter.resetCharacterState();
-            playerCharacter.resetPossibleMovementLocations();
+            playerCharacter.ResetCharacterState();
         }
 
     }
