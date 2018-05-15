@@ -14,31 +14,30 @@ namespace Tactics.Characters {
 
         private class ActionQueue {
 
-            List<Cell>[] characterLocationInQueue;
+            List<Cell>[] characterMovementsInQueue;
             IEnumerator[] actionQueue;
             int queueSize;
             int currentIndex; //Points to the index after the last action
 
             public ActionQueue(int _queueSize) {
-                //TODO account for movement and actions
                 queueSize = _queueSize + 1; //+ 1 because it's that many moves, plus an extra for action
                 actionQueue = new IEnumerator[queueSize];
-                characterLocationInQueue = new List<Cell>[queueSize];
+                characterMovementsInQueue = new List<Cell>[queueSize];
                 currentIndex = 0;
             }
 
-            public void QueueAction(IEnumerator action, List<Cell> newLocation) {
+            public void QueueAction(IEnumerator action, List<Cell> newMovementPath) {
                 if (currentIndex >= queueSize)
                     throw new System.Exception("Adding to Action Queue when it's full");
                 actionQueue[currentIndex] = action;
-                characterLocationInQueue[currentIndex++] = newLocation;
+                characterMovementsInQueue[currentIndex++] = newMovementPath;
             }
 
             public IEnumerator DequeueBackAction() {
                 if (IsEmpty())
                     throw new System.Exception("Dequeuing Back Action Queue when it's empty");
                 actionQueue[--currentIndex] = null;
-                characterLocationInQueue[currentIndex] = null;
+                characterMovementsInQueue[currentIndex] = null;
                 return actionQueue[currentIndex];
             }
 
@@ -48,19 +47,26 @@ namespace Tactics.Characters {
                 IEnumerator action = actionQueue[0];
                 for (int i = 1; i < currentIndex; i++) {
                     actionQueue[i - 1] = actionQueue[i];
-                    characterLocationInQueue[i - 1] = characterLocationInQueue[i];
+                    characterMovementsInQueue[i - 1] = characterMovementsInQueue[i];
                 }
                 actionQueue[--currentIndex] = null;
-                characterLocationInQueue[currentIndex] = null;
+                characterMovementsInQueue[currentIndex] = null;
                 return action;
             }
 
             public List<List<Cell>> GetMovementPaths() {
                 List<List<Cell>> movementPaths = new List<List<Cell>>();
                 for (int i = 0; i < currentIndex; i++) {
-                    movementPaths.Add(characterLocationInQueue[i]);
+                    movementPaths.Add(characterMovementsInQueue[i]);
                 }
                 return movementPaths;
+            }
+
+            public Cell GetProjectedLocation() {
+                if (IsEmpty()) { return null; }
+
+                List<Cell> lastMovementPath = characterMovementsInQueue[currentIndex - 1];
+                return lastMovementPath == null ? null : lastMovementPath[lastMovementPath.Count - 1];
             }
 
             public bool IsEmpty() {
@@ -73,7 +79,10 @@ namespace Tactics.Characters {
         private LayerMask CELL_LAYER_MASK;
         
         private Cell currentLocation = null;
-        public Cell getCellLocation() { return currentLocation; }
+        public Cell GetCellLocation() {
+            Cell projectedCell = actionQueue.GetProjectedLocation();
+            return projectedCell ? projectedCell : currentLocation;
+        }
         public Cell LinkToNewCellLocation(Cell newCell) {
             if (currentLocation) {
                 currentLocation.clearCharacterOnCell();
@@ -171,16 +180,12 @@ namespace Tactics.Characters {
 
         private IEnumerator moveCharacter(List<Cell> movementPath) {
             characterState = State.MOVING;
-            //numTurnsLeft--;
-            //LinkToNewCellLocation(movementPath[movementPath.Count - 1]);
             foreach (Cell targetCell in movementPath) {
                 while (Vector3.Distance(transform.position, targetCell.transform.position + new Vector3(0, GridSpace.cellSize/2, 0)) > movementDistanceThreshold) {
                     setMoveTarget(targetCell);
                     yield return 0;
                 }                
             }
-
-            //resetPossibleMovementLocations();
             setMoveTarget(null);
             characterState = State.IDLE;
         }
@@ -188,9 +193,8 @@ namespace Tactics.Characters {
         private IEnumerator attackTarget(Character target) {
             characterState = State.ATTACKING;
             //target.GetComponent<Health>().TakeDamage(weapon.weaponDamage);
-            //TODO combine animation into one function, or extract it to look nicer
             //TODO Maybe also sync up the WaitForSeconds
-            weaponSystem.Attack_BasicMelee();
+            weaponSystem.Attack_BasicMelee(target);
             yield return new WaitForSeconds(1f);
             characterState = State.FINISHED;
         }
@@ -198,36 +202,25 @@ namespace Tactics.Characters {
         private bool cellHasEnemy(Cell cell) {
             return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
         }
-
-        //TODO extract this and think of a way to make this account for range units too, by maybe using the AI classes
-        //TODO fix so that when your movement path isn't in reach, you can still attack if your range is long enough (Use the Enemy's AI code and put it in GridSpace)
-        //TODO save this as a variable so multiple calls to this function won't be needed
+        
         public HashSet<Character> GetTargetsInRange() {
             //TODO make strings into constants
             string oppositeTeamTag = this.gameObject.CompareTag("Enemy") ? "Player" : "Enemy";
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
             HashSet<Character> charactersInRange = new HashSet<Character>();
             float weaponRange = weaponSystem.GetCurrentWeapon().weaponRange;
-            GridSpace.MovementLocationsInfo weaponRangeAreaInfo = GridSpace.GetPossibleMovementLocations(currentLocation, weaponRange);
-
+            Vector3 thisPosition = GetCellLocation().transform.position;
+            
             foreach (GameObject characterObj in characters) {
                 Character character = characterObj.GetComponent<Character>();
-                Cell cellOfCharacter = character.getCellLocation();
-                var costForNodes = currentPossibleMovementLocations.costToGoThroughNode;
-                print("WeaponRange: " + weaponSystem.GetCurrentWeapon().weaponRange + " | " + costForNodes[cellOfCharacter]);
-                if (costForNodes.ContainsKey(cellOfCharacter) && 
-                    costForNodes[cellOfCharacter] < weaponSystem.GetCurrentWeapon().weaponRange) {
+                //Position is based on the cell the character's in
+                Vector3 characterPosition = character.GetCellLocation().transform.position;
+                float distanceToCharacter = Vector3.Distance(characterPosition, thisPosition);
+                if (distanceToCharacter <= weaponRange) {
                     charactersInRange.Add(character);
                 }
             }
             return charactersInRange;
-            //HashSet<Character> targets = new HashSet<Character>();
-            //foreach (Cell cell in currentLocation.getAllSurroundingCells()) {
-            //    if (cell.getCharacterOnCell() != null) {
-            //        targets.Add(cell.getCharacterOnCell());
-            //    }
-            //}
-            //return targets;
         }
         public bool CanAttackTarget(Character target) { return GetTargetsInRange().Contains(target); }
 
@@ -250,7 +243,7 @@ namespace Tactics.Characters {
                 throw new System.Exception("Trying to move when out of move turns");
             print("Queuing movement action");
             --numTurnsLeft;
-            Cell newLocation = LinkToNewCellLocation(cellPathToMove[cellPathToMove.Count - 1]);
+            LinkToNewCellLocation(cellPathToMove[cellPathToMove.Count - 1]);
             actionQueue.QueueAction(moveCharacter(cellPathToMove), cellPathToMove);
 
         }

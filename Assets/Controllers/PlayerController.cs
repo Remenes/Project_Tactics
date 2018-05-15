@@ -55,7 +55,7 @@ namespace Tactics.Controller {
                     }
                 }
                 else if (playerCharacter.CanMove() && playerCharacter.isWithinMovementRangeOf(newCellLocation)) {
-                    List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), newCellLocation);
+                    List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), newCellLocation);
                     playerCharacter.QueueMovementAction(path);
                 }
             }
@@ -76,7 +76,7 @@ namespace Tactics.Controller {
              */
             foreach (Cell cell in surroundingCells) {
                 if (playerCharacter.isWithinMovementRangeOf(cell)) {
-                    return GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), cell);
+                    return GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), cell);
                 }
             }
             return null;

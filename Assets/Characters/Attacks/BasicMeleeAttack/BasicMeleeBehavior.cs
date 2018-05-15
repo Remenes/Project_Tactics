@@ -13,13 +13,23 @@ namespace Tactics.Characters {
             config = abilityConfig as BasicMeleeConfig;
         }
 
-        public override void Use(Weapon weaponForAnimation = null) {
+        public override void Use(Character target, Weapon weaponForAnimation = null) {
+            //Override Animation with Weapon animation, since basic attacks should use the weapon's animation
+            overrideAnimationWithWeapon(weaponForAnimation);
+
+            lookAtTarget(target.transform);
+            
+            animator.SetTrigger(AttackTrigger);
+        }
+
+        private void overrideAnimationWithWeapon(Weapon weaponForAnimation) {
             if (weaponForAnimation == null)
                 overrideAttackAnimation();
             else
                 overrideAttackAnimation(weaponForAnimation.GetAnimationClip());
-            animator.SetTrigger(AttackTrigger);
         }
+
+
 
     }
 

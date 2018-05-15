@@ -72,7 +72,7 @@ namespace Tactics.CameraUI {
                 highlightedCells.Clear();
                 return;
             }
-            if (!playerCharacter.getCellLocation()) {
+            if (!playerCharacter.GetCellLocation()) {
                 return;
             }
             GridSpace.MovementLocationsInfo locationsInfo = playerCharacter.GetPossibleMovementLocations();
@@ -103,11 +103,13 @@ namespace Tactics.CameraUI {
 
         private List<Cell> totalPathLink(Cell endLocation) {
 
-            List<Cell> currentCellPath = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.getCellLocation(), endLocation);
-            List<List<Cell>> movementPaths = playerCharacter.GetMovementPathsInfo();
+            List<Cell> currentCellPath = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), endLocation);
             List<Cell> cellPath = cellsFromCurrentMovementPath();
             
             if (currentCellPath != null && !endLocation.getCharacterOnCell() && playerCharacter.CanMove()) {
+                if (cellPath.Count > 0) {
+                    cellPath.RemoveAt(cellPath.Count - 1);
+                }
                 cellPath.AddRange(currentCellPath);
             }
             return cellPath;
@@ -119,6 +121,10 @@ namespace Tactics.CameraUI {
             if (movementPaths.Count > 0) {
                 foreach (List<Cell> path in movementPaths) {
                     if (path != null) {
+                        if (cellPath.Count > 0) {
+                            // Remove the last one before every path to avoid duplicates, since the last and first are the same.
+                            cellPath.RemoveAt(cellPath.Count - 1); 
+                        }
                         cellPath.AddRange(path);
                     }
                 }

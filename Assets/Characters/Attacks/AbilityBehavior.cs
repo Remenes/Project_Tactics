@@ -26,11 +26,17 @@ namespace Tactics.Characters {
         /// 
         /// </summary>
         /// <param name="weapon"> Pass in a weapon if you need to change animation to be with the weapon </param>
-        public abstract void Use(Weapon weaponForAnimation = null);
+        public abstract void Use(Character target, Weapon weaponForAnimation = null);
 
         protected void overrideAttackAnimation(AnimationClip anotherAnimation = null) {
             animator.runtimeAnimatorController = character.GetOverrideController();
             character.GetOverrideController()[AttackAnim] = anotherAnimation == null ? abilityConfig.GetAbilityAnimation() : anotherAnimation;
+        }
+
+        protected void lookAtTarget(Transform target) {
+            Vector3 lookAtPos = target.transform.position;
+            lookAtPos.y = transform.position.y;
+            transform.LookAt(lookAtPos);
         }
 
     }

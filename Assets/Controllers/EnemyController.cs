@@ -55,7 +55,7 @@ namespace Tactics.Controller {
                     executing = true;
                 }
                 else if (enemy.CanMove()) {
-                    List<Cell> pathToPlayer = enemyAI.GetWantedPath(playerTarget.getCellLocation()); //getPathTowards(playerTarget.getCellLocation(), enemy.getMovementDistance());
+                    List<Cell> pathToPlayer = enemyAI.GetWantedPath(playerTarget.GetCellLocation()); //getPathTowards(playerTarget.GetCellLocation(), enemy.getMovementDistance());
                     enemy.QueueMovementAction(pathToPlayer);
                 }
                 else {

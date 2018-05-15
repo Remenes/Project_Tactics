@@ -22,7 +22,7 @@ namespace Tactics.Characters {
 	
         //TODO remove the lag spike that occurs here from all the calculations: by using Coroutine or switching to A*
         private List<Cell> GetPathTowards(Cell goal) {
-            Cell enemyLocation = enemy.getCellLocation();
+            Cell enemyLocation = enemy.GetCellLocation();
             HashSet<Cell> evaluatedCells = new HashSet<Cell>();
             HashSet<Cell> discoveredCells = new HashSet<Cell> { enemyLocation };
 

@@ -28,8 +28,8 @@ namespace Tactics.Characters {
             meleeBehavior = meleeConfig.AttachAbilityBehaviorTo(this.gameObject) as BasicMeleeBehavior;
         }
 
-        public void Attack_BasicMelee() {
-            meleeBehavior.Use(weaponForAnimation: weaponInUse);
+        public void Attack_BasicMelee(Character target) {
+            meleeBehavior.Use(target, weaponForAnimation: weaponInUse);
         }
 
         public Weapon GetCurrentWeapon() {

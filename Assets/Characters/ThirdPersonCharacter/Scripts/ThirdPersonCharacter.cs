@@ -7,9 +7,9 @@ namespace Tactics.Characters
 	[RequireComponent(typeof(Animator))]
 	public class ThirdPersonCharacter : MonoBehaviour
 	{
-		[SerializeField] float m_MovingTurnSpeed = 360;
-		[SerializeField] float m_StationaryTurnSpeed = 180;
-		[SerializeField] float m_JumpPower = 12f;
+        //[SerializeField] float m_MovingTurnSpeed = 360;
+        [SerializeField] float m_StationaryTurnSpeed = 180;
+        [SerializeField] float m_JumpPower = 12f;
 		[Range(1f, 4f)][SerializeField] float m_GravityMultiplier = 2f;
 		[SerializeField] float m_RunCycleLegOffset = 0.2f; //specific to the character in sample assets, will need to be modified to work with others
 		[SerializeField] float m_MoveSpeedMultiplier = 1f;
@@ -21,7 +21,6 @@ namespace Tactics.Characters
 		bool m_IsGrounded;
 		float m_OrigGroundCheckDistance;
 		const float k_Half = 0.5f;
-		float m_TurnAmount;
 		float m_ForwardAmount;
 		Vector3 m_GroundNormal;
 		float m_CapsuleHeight;
@@ -46,18 +45,20 @@ namespace Tactics.Characters
 		public void Move(Vector3 move, bool crouch, bool jump)
 		{
 
-			// convert the world relative moveInput vector into a local-relative
-			// turn amount and forward amount required to head in the desired
-			// direction.
-			if (move.magnitude > 1f) move.Normalize();
-			move = transform.InverseTransformDirection(move);
+            // convert the world relative moveInput vector into a local-relative
+            // turn amount and forward amount required to head in the desired
+            // direction.
+
+            if (move.magnitude > 1f) move.Normalize();
+
+            //Rotate character using world coordinates before converting to local
+            RotateCharacter(move);
+
+            move = transform.InverseTransformDirection(move);
 			CheckGroundStatus();
 			move = Vector3.ProjectOnPlane(move, m_GroundNormal);
-			m_TurnAmount = Mathf.Atan2(move.x, move.z);
 			m_ForwardAmount = move.z;
-
-			ApplyExtraTurnRotation();
-
+            
 			// control and velocity handling is different when grounded and airborne:
 			if (m_IsGrounded)
 			{
@@ -73,6 +74,12 @@ namespace Tactics.Characters
             UpdateAnimator(move);
 		}
 
+        void RotateCharacter(Vector3 move) {
+            //TODO make characters rotate first, then start walking (only) if they are starting to move
+            if (move.sqrMagnitude > .25f) {
+                transform.LookAt(transform.position + move);
+            }
+        }
 
 		void ScaleCapsuleForCrouching(bool crouch)
 		{
@@ -117,7 +124,7 @@ namespace Tactics.Characters
 		{
 			// update the animator parameters
 			m_Animator.SetFloat("Forward", m_ForwardAmount, 0.1f, Time.deltaTime);
-			m_Animator.SetFloat("Turn", m_TurnAmount, 0.1f, Time.deltaTime);
+			//m_Animator.SetFloat("Turn", m_TurnAmount, 0.1f, Time.deltaTime);
 			m_Animator.SetBool("Crouch", m_Crouching);
 			m_Animator.SetBool("OnGround", m_IsGrounded);
 			if (!m_IsGrounded)
@@ -173,14 +180,6 @@ namespace Tactics.Characters
 				m_GroundCheckDistance = 0.1f;
 			}
 		}
-
-		void ApplyExtraTurnRotation()
-		{
-			// help the character turn faster (this is in addition to root rotation in the animation)
-			float turnSpeed = Mathf.Lerp(m_StationaryTurnSpeed, m_MovingTurnSpeed, m_ForwardAmount);
-			transform.Rotate(0, m_TurnAmount * turnSpeed * Time.deltaTime, 0);
-		}
-
 
 		public void OnAnimatorMove()
 		{
