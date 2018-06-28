@@ -19,6 +19,8 @@ namespace Tactics.Controller {
 
         private bool turnFinished = false;
         public bool getTurnFinished() { return turnFinished; }
+
+        private Cell highlighedCell;
         
         // Use this for initialization
         void Start() {
@@ -31,10 +33,12 @@ namespace Tactics.Controller {
             //cameraRaycast.mouseOverCellObservers += movePlayer;
             //cameraRaycast.mouseOverCellObservers += drawMovementLine;
             //cameraRaycast.mouseExitCellObservers += removeMovementLine;
-            cameraRaycast.mouseOverCellObservers += movePlayerToNewCell;
+            cameraRaycast.mouseOverCellObservers += updateHighlighedCell;
         }
 
         void Update() {
+            checkPlayerInput();
+
             if (playerCharacter.GetCharacterState() == State.FINISHED) {
                 turnFinished = true;
             }
@@ -43,21 +47,39 @@ namespace Tactics.Controller {
             }
         }
 
-        private void movePlayerToNewCell(Cell newCellLocation) {
+        private void updateHighlighedCell(Cell newCellLocation) {
+            highlighedCell = newCellLocation;
+        }
+
+        private void checkPlayerInput() {
+            if (Mouse.RightClicked)
+                inputUndoCommand();
+
             if (turnFinished || playerCharacter.GetCharacterState() != State.IDLE)
                 return;
 
-            if (Mouse.LeftClicked) {
-                Character target = newCellLocation.getCharacterOnCell();
-                if (target != null) {
-                    if (playerCharacter.CanAttackTarget(target)) {
-                        playerCharacter.QueueAttackTarget(target);
-                    }
+            if (Mouse.LeftClicked && highlighedCell != null) 
+                inputActionCommand();
+        }
+
+        private void inputActionCommand(){
+            Character target = highlighedCell.getCharacterOnCell();
+            if (target != null) {
+                if (playerCharacter.CanAttackTarget(target)) {
+                    playerCharacter.QueueAttackTarget(target);
                 }
-                else if (playerCharacter.CanMove() && playerCharacter.isWithinMovementRangeOf(newCellLocation)) {
-                    List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), newCellLocation);
-                    playerCharacter.QueueMovementAction(path);
-                }
+            }
+            else if (playerCharacter.CanMove() && playerCharacter.isWithinMovementRangeOf(highlighedCell)) {
+                List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), highlighedCell);
+                playerCharacter.QueueMovementAction(path);
+            }
+        }
+
+        private void inputUndoCommand() {
+            print("Do undo command");
+            if (playerCharacter.UsedActions()) {
+                print("Start Dequeue");
+                playerCharacter.DequeueLastAction();
             }
         }
 

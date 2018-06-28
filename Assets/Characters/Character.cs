@@ -81,7 +81,7 @@ namespace Tactics.Characters {
         private Cell currentLocation = null;
         public Cell GetCellLocation() {
             Cell projectedCell = actionQueue.GetProjectedLocation();
-            return projectedCell ? projectedCell : currentLocation;
+            return projectedCell ? projectedCell : getCellBelowCharacter();
         }
         public Cell LinkToNewCellLocation(Cell newCell) {
             if (currentLocation) {
@@ -139,6 +139,10 @@ namespace Tactics.Characters {
             moveToCellTarget();
         }
 
+        // ---------------------------------------
+        // ---------- Cell Methods -------------
+        // ---------------------------------------
+
         private void moveToCellTarget() {
             if (cellTarget) {
                 Vector3 desiredVelocity = cellTarget.transform.position - transform.position;
@@ -190,6 +194,25 @@ namespace Tactics.Characters {
             characterState = State.IDLE;
         }
 
+        private bool cellHasEnemy(Cell cell)
+        {
+            return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
+        }
+
+        public void resetPossibleMovementLocations()
+        {
+            currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
+        }
+
+        public bool isWithinMovementRangeOf(Cell cellToMoveTo)
+        {
+            return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
+        }
+
+        // ---------------------------------------
+        // ---------- Attack Functions -------------
+        // ---------------------------------------
+
         private IEnumerator attackTarget(Character target) {
             characterState = State.ATTACKING;
             //target.GetComponent<Health>().TakeDamage(weapon.weaponDamage);
@@ -197,10 +220,6 @@ namespace Tactics.Characters {
             weaponSystem.Attack_BasicMelee(target);
             yield return new WaitForSeconds(1f);
             characterState = State.FINISHED;
-        }
-
-        private bool cellHasEnemy(Cell cell) {
-            return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
         }
         
         public HashSet<Character> GetTargetsInRange() {
@@ -222,7 +241,10 @@ namespace Tactics.Characters {
             }
             return charactersInRange;
         }
-        public bool CanAttackTarget(Character target) { return GetTargetsInRange().Contains(target); }
+
+        // ---------------------------------------
+        // ---------- Action Queue Functions -------------
+        // ---------------------------------------
 
         public IEnumerator ExecuteActions() {
             print("Executing...");
@@ -232,9 +254,7 @@ namespace Tactics.Characters {
             }
             print("...Done");
             if (numTurnsLeft <= 0) {
-                if (GetTargetsInRange().Count == 0) { //Only end turn if they have no targets in range after they have no more turns
-                    characterState = State.FINISHED;
-                }
+                characterState = State.FINISHED;
             }
         }
         
@@ -251,25 +271,37 @@ namespace Tactics.Characters {
         public void QueueAttackTarget(Character target) {
             if (!GetTargetsInRange().Contains(target))
                 throw new System.Exception("Trying to attack a target that's not in range");
+            if (!CanMove()) 
+                throw new System.Exception("Trying to attack when no moves are available");
             print("Queuing attack action");
             numTurnsLeft = 0;
             actionQueue.QueueAction(attackTarget(target), null);
         }
 
-        public void resetPossibleMovementLocations() {
-            currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
+        public void DequeueLastAction() {
+            if (actionQueue.IsEmpty())
+                throw new System.Exception("Dequeueing action when size is 0");
+            numTurnsLeft++;
+            actionQueue.DequeueBackAction();
+            // GetCellLocation looks into the actionQueue's last cell position
+            LinkToNewCellLocation(GetCellLocation());
         }
 
-        public bool isWithinMovementRangeOf(Cell cellToMoveTo) {
-            return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
+        public List<List<Cell>> GetMovementPathsInfo() {
+            return actionQueue.GetMovementPaths();
         }
 
         public bool CanMove() {
             return numTurnsLeft > 0;
         }
 
-        public List<List<Cell>> GetMovementPathsInfo() {
-            return actionQueue.GetMovementPaths();
+        public bool UsedActions() {
+            return numTurnsLeft < maxMoves;
+        }
+
+        public bool CanAttackTarget(Character target) {
+            // TODO separate moves and actions
+            return numTurnsLeft > 0 && GetTargetsInRange().Contains(target);
         }
         
     }
