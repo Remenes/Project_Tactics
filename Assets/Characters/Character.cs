@@ -66,7 +66,7 @@ namespace Tactics.Characters {
                 if (IsEmpty()) { return null; }
 
                 List<Cell> lastMovementPath = characterMovementsInQueue[currentIndex - 1];
-                return lastMovementPath == null ? null : lastMovementPath[lastMovementPath.Count - 1];
+                return lastMovementPath[lastMovementPath.Count - 1];
             }
 
             public bool IsEmpty() {
@@ -178,6 +178,10 @@ namespace Tactics.Characters {
             return cellBelowCharacter;
         }
 
+        private List<Cell> currentCellAsList() {
+            return new List<Cell> { GetCellLocation() };
+        }
+
         private void setMoveTarget(Cell newMoveToCell) {
             cellTarget = newMoveToCell;
         }
@@ -274,8 +278,8 @@ namespace Tactics.Characters {
             if (!CanMove()) 
                 throw new System.Exception("Trying to attack when no moves are available");
             print("Queuing attack action");
-            numTurnsLeft = 0;
-            actionQueue.QueueAction(attackTarget(target), null);
+            --numTurnsLeft;
+            actionQueue.QueueAction(attackTarget(target), currentCellAsList());
         }
 
         public void DequeueLastAction() {
