@@ -37,7 +37,7 @@ namespace Tactics.Controller {
             for (int index = 0; index < characters.Length; ++index) {
                 currCharacterIndex = index;
                 assignEnemyActions();
-                StartCoroutine(currentCharacter.ExecuteActions());
+                currentCharacter.ExecuteActions();
             }
             executingActions = true;
         }

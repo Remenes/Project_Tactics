@@ -108,7 +108,7 @@ namespace Tactics.Controller {
                 foreach (Character playerChar in characters) {
                     if (playerChar.HasActionsQueued()) {
                         //TODO consider that this won't need to start a coroutine
-                        StartCoroutine(playerChar.ExecuteActions());
+                        playerChar.ExecuteActions();
                     }
                 }
             }
