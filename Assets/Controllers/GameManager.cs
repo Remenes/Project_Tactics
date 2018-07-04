@@ -22,15 +22,15 @@ namespace Tactics.Controller {
 
         // Update is called once per frame
         void Update() {
-            if (factionTurn == Turn.Player && playerController.getTurnFinished() == true) {
+            if (factionTurn == Turn.Player && playerController.GetTurnFinished() == true) {
                 //Move this out of a loop so that this won't happen when they are already on their respective states
-                enemyController.ResetCharacterTurn();
+                enemyController.ResetTurn();
                 switchTurnTo(Turn.Enemy);
                 factionTurn = Turn.Enemy;
             }
-            else if (factionTurn == Turn.Enemy && enemyController.getTurnFinished() == true) {
+            else if (factionTurn == Turn.Enemy && enemyController.GetTurnFinished() == true) {
                 switchTurnTo(Turn.Player);
-                playerController.ResetCharacterTurn();
+                playerController.ResetTurn();
                 factionTurn = Turn.Player;
             }
         }

@@ -104,6 +104,7 @@ namespace Tactics.Characters {
         //private int queuedTurnsLeft; // Used for checking how many
         public int GetMaxTurns() { return maxMoves; }
         public int GetNumTurnsLeft() { return numTurnsLeft; }
+        public void EndTurn() { numTurnsLeft = 0; }
         public State GetCharacterState() { return characterState; }
         public bool isIDLE() { return characterState == State.IDLE; }
         public bool isFinished() { return characterState == State.FINISHED; }
@@ -195,21 +196,17 @@ namespace Tactics.Characters {
                 }                
             }
             setMoveTarget(null);
-            characterState = State.IDLE;
         }
 
-        private bool cellHasEnemy(Cell cell)
-        {
+        private bool cellHasEnemy(Cell cell) {
             return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
         }
 
-        public void resetPossibleMovementLocations()
-        {
+        public void resetPossibleMovementLocations() {
             currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
         }
 
-        public bool isWithinMovementRangeOf(Cell cellToMoveTo)
-        {
+        public bool isWithinMovementRangeOf(Cell cellToMoveTo) {
             return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
         }
 
@@ -223,7 +220,6 @@ namespace Tactics.Characters {
             //TODO Maybe also sync up the WaitForSeconds
             weaponSystem.Attack_BasicMelee(target);
             yield return new WaitForSeconds(1f);
-            characterState = State.FINISHED;
         }
         
         public HashSet<Character> GetTargetsInRange() {
@@ -246,17 +242,21 @@ namespace Tactics.Characters {
             return charactersInRange;
         }
 
+
+
         // ---------------------------------------
         // ---------- Action Queue Functions -------------
         // ---------------------------------------
+        public void ExecuteActions() {
+            StartCoroutine(executeActionsCoroutine());
+        }
 
-        public IEnumerator ExecuteActions() {
-            print("Executing...");
+        private IEnumerator executeActionsCoroutine() {
             while (!actionQueue.IsEmpty()) {
                 IEnumerator currentAction = actionQueue.DequeueFrontAction();
                 yield return StartCoroutine(currentAction);
             }
-            print("...Done");
+            characterState = State.IDLE;
             if (numTurnsLeft <= 0) {
                 characterState = State.FINISHED;
             }
@@ -295,6 +295,7 @@ namespace Tactics.Characters {
             return actionQueue.GetMovementPaths();
         }
 
+        //TODO: create a CanAttack and implement 2 bars: 1 for moving, 1 for actions
         public bool CanMove() {
             return numTurnsLeft > 0;
         }
@@ -308,5 +309,9 @@ namespace Tactics.Characters {
             return numTurnsLeft > 0 && GetTargetsInRange().Contains(target);
         }
         
+        public bool HasActionsQueued() {
+            return !actionQueue.IsEmpty();
+        }
+
     }
 }

@@ -20,9 +20,7 @@ namespace Tactics.CameraUI {
         // Use this for initialization
         void Start() {
             movementLine = GetComponent<LineRenderer>();
-            playerControl = GetComponent<PlayerController>();
-            playerCharacter = playerControl.getCurrentPlayerCharacter();
-
+            registerPlayerController();
             registerCameraRaycast();
         }
 
@@ -30,6 +28,12 @@ namespace Tactics.CameraUI {
             CameraRaycast cameraRaycast = Camera.main.GetComponent<CameraRaycast>();
             cameraRaycast.mouseOverCellObservers += changeCurrentCellColorEntered;
             cameraRaycast.mouseExitCellObservers += changeCurrentCellColorExited;
+        }
+
+        private void registerPlayerController() {
+            playerControl = GetComponent<PlayerController>();
+            playerCharacter = playerControl.GetCurrentCharacter();
+            playerControl.playerActionObservers += updateMovementLine;
         }
 
         private void changeCurrentCellColorEntered(Cell cell) {
@@ -42,7 +46,7 @@ namespace Tactics.CameraUI {
             }
 
             drawMovementLine(cell);
-            var playerCharacter = playerControl.getCurrentPlayerCharacter();
+            var playerCharacter = playerControl.GetCurrentCharacter();
             if (playerCharacter.GetPossibleMovementLocations().costToGoThroughNode.ContainsKey(cell)) {
                 
             }
@@ -54,16 +58,21 @@ namespace Tactics.CameraUI {
             cellMaterial.color = initialCellColor.Value;
         }
 
+        private void updateMovementLine() {
+            drawMovementLine(playerCharacter.GetCellLocation());
+        }
+
         // Update is called once per frame
         void Update() {
 
             //highlightPossibleMovementLocations();
+            playerCharacter = playerControl.GetCurrentCharacter();
         }
 
         //TODO remove this method
         private List<Cell> highlightedCells = new List<Cell>();
         private void highlightPossibleMovementLocations() {
-            var playerCharacter = /*playerControl.getCurrentPlayerCharacter() */enemyControl.getCurrentEnemyCharacter();
+            var playerCharacter = /*playerControl.getCurrentPlayerCharacter() */enemyControl.GetCurrentCharacter();
             if (!playerCharacter.isIDLE() && playerCharacter.isFinished()) { 
                 foreach (Cell cell in highlightedCells) {
                     Material movementLocationMaterial = cell.GetComponent<Renderer>().material;

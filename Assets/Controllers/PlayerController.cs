@@ -8,38 +8,44 @@ using Tactics.Characters;
 
 namespace Tactics.Controller {
 
-    public class PlayerController : MonoBehaviour {
-
-        //TODO get rid of navmesh and aiCharacterControl
-        private GameObject player;
-        //private NavMeshAgent playerAgent;
-        //private AICharacterControl playerControl;
-        private Character playerCharacter;
-        public Character getCurrentPlayerCharacter() { return playerCharacter; }
-
-        private bool turnFinished = false;
-        public bool getTurnFinished() { return turnFinished; }
+    public class PlayerController : Controller {
 
         private Cell highlighedCell;
+
+        public delegate void OnPlayerAction();
+        public event OnPlayerAction playerActionObservers;
         
         // Use this for initialization
-        void Start() {
-            player = GameObject.FindGameObjectWithTag("Player");
-            //playerAgent = player.GetComponent<NavMeshAgent>();
-            //playerControl = player.GetComponent<AICharacterControl>();
-            playerCharacter = player.GetComponent<Character>();
-            
+        protected override void Start() {
+            registerCharacters("Player");
+            registerCameraRaycast();
+        }
+
+        // Registers the camera raycast so that the cell that is being operated on (using the mouse) can be seen here
+        private void registerCameraRaycast() {
             CameraRaycast cameraRaycast = Camera.main.GetComponent<CameraRaycast>();
-            //cameraRaycast.mouseOverCellObservers += movePlayer;
-            //cameraRaycast.mouseOverCellObservers += drawMovementLine;
-            //cameraRaycast.mouseExitCellObservers += removeMovementLine;
             cameraRaycast.mouseOverCellObservers += updateHighlighedCell;
         }
 
-        void Update() {
+        protected override void Update() {
+            // Can't do anything if it's not their turn (*or can they????*)
+            if (turnFinished)
+                return;
+
+            // Check if the actions are still executing or not and return if they are still executing actions
+            if (executingActions) {
+                if (charactersDoneWithActions()) {
+                    executingActions = false;
+                }
+                if (executingActions) {
+                    return;
+                }
+            }
+
             checkPlayerInput();
 
-            if (playerCharacter.GetCharacterState() == State.FINISHED) {
+            // Set the players turn to finished if all their characters are finished
+            if (compareAllCharactersStateTo(State.FINISHED)) {
                 turnFinished = true;
             }
             if (!turnFinished) {
@@ -52,63 +58,62 @@ namespace Tactics.Controller {
         }
 
         private void checkPlayerInput() {
-            if (Mouse.RightClicked)
+            // TODO put this somewhere better
+            // TODO make a keyboard input class/struct for this
+            if (Input.GetKeyDown(KeyCode.Tab)) {
+                incCurrentIndex();
+            }
+
+            executingActions = false;
+            if (Mouse.RightClicked) {
                 inputUndoCommand();
+                playerActionObservers();
+            }
 
-            if (turnFinished || playerCharacter.GetCharacterState() != State.IDLE)
-                return;
-
-            if (Mouse.LeftClicked && highlighedCell != null) 
+            if (Mouse.LeftClicked && highlighedCell != null) {
                 inputActionCommand();
+                playerActionObservers();
+            }
         }
 
+        // Perform a move or attack depending on which cell was checked
         private void inputActionCommand(){
             Character target = highlighedCell.getCharacterOnCell();
             if (target != null) {
-                if (playerCharacter.CanAttackTarget(target)) {
-                    playerCharacter.QueueAttackTarget(target);
+                if (currentCharacter.CanAttackTarget(target)) {
+                    currentCharacter.QueueAttackTarget(target);
                 }
             }
-            else if (playerCharacter.CanMove() && playerCharacter.isWithinMovementRangeOf(highlighedCell)) {
-                List<Cell> path = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), highlighedCell);
-                playerCharacter.QueueMovementAction(path);
+            else if (currentCharacter.CanMove() && 
+                currentCharacter.isWithinMovementRangeOf(highlighedCell)) {
+                List<Cell> path = GridSpace.GetPathFromLinks(
+                    currentCharacter.GetPossibleMovementLocations(),
+                    currentCharacter.GetCellLocation(), highlighedCell);
+                currentCharacter.QueueMovementAction(path);
             }
         }
 
+        // Perform an undo action if the undo command was pressed
         private void inputUndoCommand() {
-            print("Do undo command");
-            if (playerCharacter.UsedActions()) {
-                print("Start Dequeue");
-                playerCharacter.DequeueLastAction();
+            // Check if the player character actually used actions or not
+            if (currentCharacter.UsedActions()) {
+                currentCharacter.DequeueLastAction();
             }
         }
 
+        // Check if the player pressed the button to execute actions, and then execute them if they did
         private void checkExecuteActions() {
-            //TODO make an "executing" variable in this class that prevents this from being called multiple times
-            if (Input.GetKeyDown(KeyCode.Space)) {
-                //TODO consider that this won't need to start a coroutine
-                StartCoroutine(playerCharacter.ExecuteActions());
-            }
-        }
-
-        public List<Cell> findPathTowardsAdjacentCharacter(Cell cellWithCharacter) {
-            HashSet<Cell> surroundingCells = cellWithCharacter.getAllSurroundingCells();
-            /*TODO move to closeest path or another method of choosing a path
-                right now, it finds a "random" path that the player can move through to the cell
-             */
-            foreach (Cell cell in surroundingCells) {
-                if (playerCharacter.isWithinMovementRangeOf(cell)) {
-                    return GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), cell);
+            if (Input.GetKeyDown(KeyCode.Space) && !executingActions) {
+                executingActions = true;
+                foreach (Character playerChar in characters) {
+                    if (playerChar.HasActionsQueued()) {
+                        //TODO consider that this won't need to start a coroutine
+                        StartCoroutine(playerChar.ExecuteActions());
+                    }
                 }
             }
-            return null;
         }
-
-        public void ResetCharacterTurn() {
-            turnFinished = false;
-            playerCharacter.ResetCharacterState();
-        }
-
+        
     }
 
 }

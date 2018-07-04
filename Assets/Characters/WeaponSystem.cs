@@ -11,16 +11,12 @@ namespace Tactics.Characters {
         private const string AttackTrigger = "Attack";
 
         [SerializeField] private Weapon weaponInUse;
-        private Character character;
-        private Animator animator;
 
         [SerializeField] private BasicMeleeConfig meleeConfig;
         BasicMeleeBehavior meleeBehavior;
 
         // Use this for initialization
         void Start() {
-            character = GetComponent<Character>();
-            animator = GetComponent<Animator>();
             registerAbilities();
         }
 

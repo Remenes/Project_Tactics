@@ -7,65 +7,75 @@ using Tactics.Grid;
 
 namespace Tactics.Controller {
 
-    public class EnemyController : MonoBehaviour {
-
-        Character enemy;
-        public Character getCurrentEnemyCharacter() { return enemy; }
-        EnemyMeleeAI enemyAI;
-
-        Character playerTarget;
-
-
-        private bool turnFinished = false;
-        public bool getTurnFinished() { return turnFinished; }
-        public void ResetCharacterTurn() {
-            turnFinished = false;
-            enemy.ResetCharacterState();
-        }
-
-        private bool executing = false;
-
+    public class EnemyController : Controller {
+        
+        PlayerController playerControl;
+        
         // Use this for initialization
-        void Start() {
-            enemy = GameObject.FindGameObjectWithTag("Enemy").GetComponent<Character>();
-            enemyAI = enemy.GetComponent<EnemyMeleeAI>();
-            playerTarget = GameObject.FindGameObjectWithTag("Player").GetComponent<Character>();
+        protected override void Start() {
+            playerControl = GameObject.FindObjectOfType<PlayerController>();
+            registerCharacters("Enemy");
+            print(characters.Length);
         }
 
         // Update is called once per frame
-
-        void Update() {
-            controlEnemy();
+        protected override void Update() {
+            controlEnemies();
         }
 
-        private void controlEnemy() {
-            if (enemy.GetCharacterState() == State.FINISHED) {
+        // Function that is called every frame to control all the enemies actions
+        private void controlEnemies() {
+            if (compareAllCharactersStateTo(State.FINISHED)) {
                 turnFinished = true;
-                executing = false;
             }
-            if (turnFinished || executing)
+            if (charactersDoneWithActions()) {
+                executingActions = false;
+            }
+            if (turnFinished || executingActions)
                 return;
-            //TODO make enemies working again
-            print("Enemy State: " + enemy.GetCharacterState());
-            if (enemy.GetCharacterState() == State.IDLE) {
-                if (enemy.CanAttackTarget(playerTarget)) {
 
-                    enemy.QueueAttackTarget(playerTarget);
-                    StartCoroutine(enemy.ExecuteActions());
-                    executing = true;
+            for (int index = 0; index < characters.Length; ++index) {
+                currCharacterIndex = index;
+                assignEnemyActions();
+                StartCoroutine(currentCharacter.ExecuteActions());
+            }
+            executingActions = true;
+        }
+
+        // Assigns the currentCharacter's actions
+        // TODO: make this work for enemies of a general type rather than just enemyMeleeAI
+        private void assignEnemyActions() {
+            Character enemy = currentCharacter;
+            EnemyMeleeAI enemyAI = currentCharacter.GetComponent<EnemyMeleeAI>();
+            Character target = getClosestTarget();
+            while (enemy.CanMove()) { 
+                if (enemy.CanAttackTarget(target)) {
+                    enemy.QueueAttackTarget(target);
                 }
                 else if (enemy.CanMove()) {
-                    List<Cell> pathToPlayer = enemyAI.GetWantedPath(playerTarget.GetCellLocation()); //getPathTowards(playerTarget.GetCellLocation(), enemy.getMovementDistance());
+                    List<Cell> pathToPlayer = enemyAI.GetWantedPath(target.GetCellLocation()); //getPathTowards(playerTarget.GetCellLocation(), enemy.getMovementDistance());
                     enemy.QueueMovementAction(pathToPlayer);
                 }
                 else {
-                    StartCoroutine(enemy.ExecuteActions());
-                    executing = true;
+                    enemy.EndTurn();
                 }
             }
-            
         }
 
-
+        private Character getClosestTarget() {
+            float closestDistSqr = int.MaxValue;
+            Character closestTarget = null;
+            Vector3 enemyPosition = GetCurrentCharacter().transform.position;
+            foreach (Character playerChar in playerControl.GetCharacters()) {
+                Vector3 playerCharPos = playerChar.transform.position;
+                float distanceBetween = Vector3.SqrMagnitude(playerCharPos - enemyPosition);
+                if (distanceBetween < closestDistSqr) {
+                    closestDistSqr = distanceBetween;
+                    closestTarget = playerChar;
+                }
+            }
+            return closestTarget;
+        }
+        
     }
 }
