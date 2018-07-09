@@ -11,7 +11,7 @@ namespace Tactics.Characters {
 
         protected Animator animator;
         protected Character character;
-
+        
         protected AbilityConfig abilityConfig;
 
         public void SetConfig(AbilityConfig toConfigureTo) {
@@ -20,7 +20,7 @@ namespace Tactics.Characters {
             character = GetComponent<Character>();
             animator = GetComponent<Animator>();
         }
-
+    
         //TODO maybe change this to IEnumerator so that time can be managed better
         /// <summary>
         /// 

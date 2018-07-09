@@ -42,29 +42,28 @@ namespace Tactics.Controller {
                 }
             }
 
-            checkPlayerInput();
-
             // Set the players turn to finished if all their characters are finished
             if (compareAllCharactersStateTo(State.FINISHED)) {
                 turnFinished = true;
+                return;
             }
-            if (!turnFinished) {
-                checkExecuteActions();
-            }
+            checkPlayerInput();
         }
 
         private void updateHighlighedCell(Cell newCellLocation) {
             highlighedCell = newCellLocation;
         }
 
+        // Checks player inputs and perform corresponding tasks 
         private void checkPlayerInput() {
             // TODO put this somewhere better
             // TODO make a keyboard input class/struct for this
             if (Input.GetKeyDown(KeyCode.Tab)) {
                 incCurrentIndex();
+                playerActionObservers();
             }
 
-            executingActions = false;
+            //executingActions = false;
             if (Mouse.RightClicked) {
                 inputUndoCommand();
                 playerActionObservers();
@@ -72,6 +71,11 @@ namespace Tactics.Controller {
 
             if (Mouse.LeftClicked && highlighedCell != null) {
                 inputActionCommand();
+                playerActionObservers();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Space)) {
+                executeActions();
                 playerActionObservers();
             }
         }
@@ -101,8 +105,8 @@ namespace Tactics.Controller {
             }
         }
 
-        // Check if the player pressed the button to execute actions, and then execute them if they did
-        private void checkExecuteActions() {
+        // Execute all the player character's actions
+        private void executeActions() {
             if (Input.GetKeyDown(KeyCode.Space) && !executingActions) {
                 executingActions = true;
                 foreach (Character playerChar in characters) {

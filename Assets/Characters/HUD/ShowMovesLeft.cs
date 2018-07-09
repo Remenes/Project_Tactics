@@ -13,6 +13,7 @@ namespace Tactics.Characters {
 
         private Character character;
         private int maxNumIcons;
+        private Vector2 pivotPoint;
 
         private RawImage[] images;
 
@@ -20,6 +21,7 @@ namespace Tactics.Characters {
         void Start() {
             character = transform.GetComponentInParent<Character>();
             maxNumIcons = character.GetMaxTurns();
+            pivotPoint = GetComponent<RectTransform>().pivot;
 
             initializeIcons();
         }
@@ -28,7 +30,7 @@ namespace Tactics.Characters {
             images = new RawImage[maxNumIcons];
             for (int i = 0; i < maxNumIcons; i++) {
                 images[i] = Instantiate(movesLeftIcon, transform);
-                Vector3 newPosition = new Vector3(i * distanceBetweenIcons, 0, 0);
+                Vector3 newPosition = new Vector3(i * distanceBetweenIcons - pivotPoint.x, 0, 0);
                 images[i].rectTransform.localPosition = newPosition;
             }
         }

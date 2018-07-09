@@ -4,14 +4,14 @@ using UnityEngine;
 
 using Tactics.Controller;
 using Tactics.Grid;
+using Tactics.Characters;
 
 namespace Tactics.CameraUI {
 
     public class PlayerControlUI : MonoBehaviour {
 
-        LineRenderer movementLine;
         PlayerController playerControl;
-        Tactics.Characters.Character playerCharacter;
+        Character playerCharacter;
 
         private Color? initialCellColor = null;
 
@@ -19,7 +19,6 @@ namespace Tactics.CameraUI {
 
         // Use this for initialization
         void Start() {
-            movementLine = GetComponent<LineRenderer>();
             registerPlayerController();
             registerCameraRaycast();
         }
@@ -33,7 +32,7 @@ namespace Tactics.CameraUI {
         private void registerPlayerController() {
             playerControl = GetComponent<PlayerController>();
             playerCharacter = playerControl.GetCurrentCharacter();
-            playerControl.playerActionObservers += updateMovementLine;
+            playerControl.playerActionObservers += updateAllMovementLine;
         }
 
         private void changeCurrentCellColorEntered(Cell cell) {
@@ -45,7 +44,7 @@ namespace Tactics.CameraUI {
                 cellMaterial.color = Color.cyan;
             }
 
-            drawMovementLine(cell);
+            drawCurrentMovementLine(cell);
             var playerCharacter = playerControl.GetCurrentCharacter();
             if (playerCharacter.GetPossibleMovementLocations().costToGoThroughNode.ContainsKey(cell)) {
                 
@@ -58,8 +57,12 @@ namespace Tactics.CameraUI {
             cellMaterial.color = initialCellColor.Value;
         }
 
-        private void updateMovementLine() {
-            drawMovementLine(playerCharacter.GetCellLocation());
+        // Updates all the characters movement line when the player presses a key that might change the movement line 
+        private void updateAllMovementLine() {
+            foreach (Character character in playerControl.GetCharacters()) {
+                MovementIndicator charIndicator = character.GetComponent<MovementIndicator>();
+                charIndicator.DrawMovementLine(character.GetCellLocation());
+            }
         }
 
         // Update is called once per frame
@@ -67,6 +70,11 @@ namespace Tactics.CameraUI {
 
             //highlightPossibleMovementLocations();
             playerCharacter = playerControl.GetCurrentCharacter();
+        }
+
+        private void drawCurrentMovementLine(Cell endLocation) {
+            MovementIndicator playerIndicator = playerCharacter.GetComponent<MovementIndicator>();
+            playerIndicator.DrawMovementLine(endLocation);
         }
 
         //TODO remove this method
@@ -90,55 +98,6 @@ namespace Tactics.CameraUI {
                 movementLocationMaterial.color = Color.red;
                 highlightedCells.Add(cellInfo.Key);
             }
-        }
-
-        private void drawMovementLine(Cell endLocation) {
-            if (!playerCharacter.isIDLE() || playerCharacter.isFinished()) {
-                movementLine.enabled = false;
-                return;
-            }
-            movementLine.enabled = true;
-
-            List<Cell> cellPath = totalPathLink(endLocation);
-
-            int numVertices = cellPath.Count;
-            movementLine.positionCount = numVertices;
-            for (int i = 0; i < numVertices; ++i) { 
-                Vector3 vertexPosition = cellPath[i].transform.position;
-                vertexPosition.y += GridSpace.cellSize / 2;
-                movementLine.SetPosition(i, vertexPosition);
-            }
-        }
-
-        private List<Cell> totalPathLink(Cell endLocation) {
-
-            List<Cell> currentCellPath = GridSpace.GetPathFromLinks(playerCharacter.GetPossibleMovementLocations(), playerCharacter.GetCellLocation(), endLocation);
-            List<Cell> cellPath = cellsFromCurrentMovementPath();
-            
-            if (currentCellPath != null && !endLocation.getCharacterOnCell() && playerCharacter.CanMove()) {
-                if (cellPath.Count > 0) {
-                    cellPath.RemoveAt(cellPath.Count - 1);
-                }
-                cellPath.AddRange(currentCellPath);
-            }
-            return cellPath;
-        }
-
-        private List<Cell> cellsFromCurrentMovementPath() {
-            List<List<Cell>> movementPaths = playerCharacter.GetMovementPathsInfo();
-            List<Cell> cellPath = new List<Cell>();
-            if (movementPaths.Count > 0) {
-                foreach (List<Cell> path in movementPaths) {
-                    if (path != null) {
-                        if (cellPath.Count > 0) {
-                            // Remove the last one before every path to avoid duplicates, since the last and first are the same.
-                            cellPath.RemoveAt(cellPath.Count - 1); 
-                        }
-                        cellPath.AddRange(path);
-                    }
-                }
-            }
-            return cellPath;
         }
 
     }
