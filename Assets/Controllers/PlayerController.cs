@@ -17,7 +17,7 @@ namespace Tactics.Controller {
         
         // Use this for initialization
         protected override void Start() {
-            registerCharacters("Player");
+            registerCharacters("Player", false);
             registerCameraRaycast();
         }
 
@@ -58,10 +58,24 @@ namespace Tactics.Controller {
         private void checkPlayerInput() {
             // TODO put this somewhere better
             // TODO make a keyboard input class/struct for this
-            if (Input.GetKeyDown(KeyCode.Tab)) {
+            if (Input.GetKeyDown(UserInput.SwitchCharacterUp)) {
                 incCurrentIndex();
                 playerActionObservers();
             }
+            if (Input.GetKeyDown(UserInput.SwitchCharacterDown)) {
+                decCurrentIndex();
+                playerActionObservers();
+            }
+
+            if (Input.GetKeyDown(UserInput.ExecuteActions)) {
+                executeActions();
+                playerActionObservers();
+                return;
+            }
+
+            // These other commands require that the current character can actually move or has actions queued
+            if (!currentCharacter.CanMove() && !currentCharacter.HasActionsQueued())
+                return;
 
             //executingActions = false;
             if (Mouse.RightClicked) {
@@ -74,8 +88,8 @@ namespace Tactics.Controller {
                 playerActionObservers();
             }
 
-            if (Input.GetKeyDown(KeyCode.Space)) {
-                executeActions();
+            if (Input.GetKeyDown(UserInput.EndTurn)) {
+                endTurnCommand();
                 playerActionObservers();
             }
         }
@@ -107,14 +121,21 @@ namespace Tactics.Controller {
 
         // Execute all the player character's actions
         private void executeActions() {
-            if (Input.GetKeyDown(KeyCode.Space) && !executingActions) {
+            if (!executingActions) {
                 executingActions = true;
                 foreach (Character playerChar in characters) {
                     if (playerChar.HasActionsQueued()) {
-                        //TODO consider that this won't need to start a coroutine
                         playerChar.ExecuteActions();
                     }
                 }
+            }
+        }
+        
+        // Ends the turn for the current player
+        // Can only be used if the player has no actions queued
+        private void endTurnCommand() {
+            if (!currentCharacter.HasActionsQueued()) {
+                currentCharacter.EndTurn();
             }
         }
         

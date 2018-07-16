@@ -12,10 +12,16 @@ namespace Tactics.Characters {
     [SelectionBase]
     public class Character : MonoBehaviour {
 
+        public const string PLAYER = "Player";
+        public const string ENEMY = "Enemy";
+
+        private enum ActionType { MOVE, ACTION }
+
         private class ActionQueue {
 
             List<Cell>[] characterMovementsInQueue;
             IEnumerator[] actionQueue;
+            ActionType[] actionTypes;
             int queueSize;
             int currentIndex; //Points to the index after the last action
 
@@ -23,13 +29,15 @@ namespace Tactics.Characters {
                 queueSize = _queueSize + 1; //+ 1 because it's that many moves, plus an extra for action
                 actionQueue = new IEnumerator[queueSize];
                 characterMovementsInQueue = new List<Cell>[queueSize];
+                actionTypes = new ActionType[queueSize];
                 currentIndex = 0;
             }
 
-            public void QueueAction(IEnumerator action, List<Cell> newMovementPath) {
+            public void QueueAction(IEnumerator action, List<Cell> newMovementPath, ActionType actionType) {
                 if (currentIndex >= queueSize)
                     throw new System.Exception("Adding to Action Queue when it's full");
                 actionQueue[currentIndex] = action;
+                actionTypes[currentIndex] = actionType;
                 characterMovementsInQueue[currentIndex++] = newMovementPath;
             }
 
@@ -38,6 +46,7 @@ namespace Tactics.Characters {
                     throw new System.Exception("Dequeuing Back Action Queue when it's empty");
                 actionQueue[--currentIndex] = null;
                 characterMovementsInQueue[currentIndex] = null;
+                // Don't need to worry about the actiontypes since it's an enum type
                 return actionQueue[currentIndex];
             }
 
@@ -48,9 +57,11 @@ namespace Tactics.Characters {
                 for (int i = 1; i < currentIndex; i++) {
                     actionQueue[i - 1] = actionQueue[i];
                     characterMovementsInQueue[i - 1] = characterMovementsInQueue[i];
+                    actionTypes[i - 1] = actionTypes[i];
                 }
                 actionQueue[--currentIndex] = null;
                 characterMovementsInQueue[currentIndex] = null;
+                // Don't need to worry about the actiontypes since it's an enum type
                 return action;
             }
 
@@ -60,6 +71,10 @@ namespace Tactics.Characters {
                     movementPaths.Add(characterMovementsInQueue[i]);
                 }
                 return movementPaths;
+            }
+
+            public ActionType GetBackActionType() {
+                return actionTypes[currentIndex - 1];
             }
 
             public Cell GetProjectedLocation() {
@@ -99,16 +114,11 @@ namespace Tactics.Characters {
         public AnimatorOverrideController GetOverrideController() { return animatorOverride; }
 
         private State characterState = State.IDLE;
-        [SerializeField] private int maxMoves = 2;
-        private int numTurnsLeft;
-        //private int queuedTurnsLeft; // Used for checking how many
-        public int GetMaxTurns() { return maxMoves; }
-        public int GetNumTurnsLeft() { return numTurnsLeft; }
-        public void EndTurn() { numTurnsLeft = 0; }
-        public State GetCharacterState() { return characterState; }
-        public bool isIDLE() { return characterState == State.IDLE; }
-        public bool isFinished() { return characterState == State.FINISHED; }
-        public void ResetCharacterState() { characterState = State.IDLE; numTurnsLeft = maxMoves; }
+        [SerializeField] private int maxMovePoints = 2;
+        [SerializeField] private int maxActionPoints = 2;
+        private int numMovesLeft;
+        private int numActionsLeft;
+
 
         [Header("Movement Modifiers")]
         [SerializeField] private float movementOffsetModifier = .5f;
@@ -129,8 +139,9 @@ namespace Tactics.Characters {
 
         private void initializeComponents() {
             CELL_LAYER_MASK = 1 << (int)Layer.CELL_LAYER;
-            numTurnsLeft = maxMoves;
-            actionQueue = new ActionQueue(maxMoves);
+            numMovesLeft = maxMovePoints;
+            numActionsLeft = maxActionPoints;
+            actionQueue = new ActionQueue(maxMovePoints + maxActionPoints);
             thirdPersonCharacter = GetComponent<ThirdPersonCharacter>();
             weaponSystem = GetComponent<WeaponSystem>();
             StartCoroutine(setStartingCellLocation());
@@ -223,8 +234,7 @@ namespace Tactics.Characters {
         }
         
         public HashSet<Character> GetTargetsInRange() {
-            //TODO make strings into constants
-            string oppositeTeamTag = this.gameObject.CompareTag("Enemy") ? "Player" : "Enemy";
+            string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
             HashSet<Character> charactersInRange = new HashSet<Character>();
             float weaponRange = weaponSystem.GetCurrentWeapon().weaponRange;
@@ -257,7 +267,7 @@ namespace Tactics.Characters {
                 yield return StartCoroutine(currentAction);
             }
             characterState = State.IDLE;
-            if (numTurnsLeft <= 0) {
+            if (numMovesLeft <= 0 && numActionsLeft <= 0) {
                 characterState = State.FINISHED;
             }
         }
@@ -266,26 +276,39 @@ namespace Tactics.Characters {
             if (!CanMove())
                 throw new System.Exception("Trying to move when out of move turns");
             print("Queuing movement action");
-            --numTurnsLeft;
+            ActionType actionToUse = ActionType.MOVE;
+            if (numMovesLeft > 0) {
+                --numMovesLeft;
+            }
+            else {
+                --numActionsLeft;
+                actionToUse = ActionType.ACTION;
+            }
             LinkToNewCellLocation(cellPathToMove[cellPathToMove.Count - 1]);
-            actionQueue.QueueAction(moveCharacter(cellPathToMove), cellPathToMove);
+            actionQueue.QueueAction(moveCharacter(cellPathToMove), cellPathToMove, actionToUse);
 
         }
 
         public void QueueAttackTarget(Character target) {
             if (!GetTargetsInRange().Contains(target))
                 throw new System.Exception("Trying to attack a target that's not in range");
-            if (!CanMove()) 
+            if (!CanPerformActions()) 
                 throw new System.Exception("Trying to attack when no moves are available");
             print("Queuing attack action");
-            --numTurnsLeft;
-            actionQueue.QueueAction(attackTarget(target), currentCellAsList());
+            --numActionsLeft;
+            actionQueue.QueueAction(attackTarget(target), currentCellAsList(), ActionType.ACTION);
         }
-
+        
         public void DequeueLastAction() {
             if (actionQueue.IsEmpty())
                 throw new System.Exception("Dequeueing action when size is 0");
-            numTurnsLeft++;
+            ActionType lastActionType = actionQueue.GetBackActionType();
+            if (lastActionType == ActionType.MOVE) {
+                ++numMovesLeft;
+            }
+            else {
+                ++numActionsLeft;
+            }
             actionQueue.DequeueBackAction();
             // GetCellLocation looks into the actionQueue's last cell position
             LinkToNewCellLocation(GetCellLocation());
@@ -295,23 +318,44 @@ namespace Tactics.Characters {
             return actionQueue.GetMovementPaths();
         }
 
-        //TODO: create a CanAttack and implement 2 bars: 1 for moving, 1 for actions
-        public bool CanMove() {
-            return numTurnsLeft > 0;
-        }
+        // ---------------------------------------
+        // ---------- Getter Functions -------------
+        // ---------------------------------------
 
+        public bool CanMove() { return numMovesLeft > 0 || numActionsLeft > 0; }
+        public bool CanPerformActions() { return numActionsLeft > 0; }
         public bool UsedActions() {
-            return numTurnsLeft < maxMoves;
+            return numMovesLeft < maxMovePoints || numActionsLeft < maxActionPoints;
+        }
+        public int GetMaxMoves() { return maxMovePoints; }
+        public int GetMaxActions() { return maxActionPoints; }
+        public int GetNumMovesLeft() { return numMovesLeft; }
+        public int GetNumActionsLeft() { return numActionsLeft; }
+        
+        public bool InRangeOfTarget(Character target) { return GetTargetsInRange().Contains(target); }
+        public bool CanAttackTarget(Character target) {
+            return numActionsLeft > 0 && InRangeOfTarget(target);
+        }
+        public bool HasActionsQueued() { return !actionQueue.IsEmpty(); }
+        public State GetCharacterState() { return characterState; }
+        public bool isIDLE() { return characterState == State.IDLE; }
+        public bool isFinished() { return characterState == State.FINISHED; }
+
+        // ---------------------------------------
+        // ---------- Setter Functions -------------
+        // ---------------------------------------
+
+        public void EndTurn() {
+            numMovesLeft = 0;
+            numActionsLeft = 0;
+            characterState = State.FINISHED;
         }
 
-        public bool CanAttackTarget(Character target) {
-            // TODO separate moves and actions
-            return numTurnsLeft > 0 && GetTargetsInRange().Contains(target);
+        public void ResetCharacterState() {
+            characterState = State.IDLE;
+            numMovesLeft = maxMovePoints;
+            numActionsLeft = maxActionPoints;
         }
         
-        public bool HasActionsQueued() {
-            return !actionQueue.IsEmpty();
-        }
-
     }
 }

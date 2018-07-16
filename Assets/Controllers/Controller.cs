@@ -24,13 +24,17 @@ namespace Tactics.Controller {
         protected abstract void Start();
         protected abstract void Update();
 
-        // Assigns the Character list to contain all of the characters that have their corresponding tag
-        protected void registerCharacters(string tag) {
+        // Assigns the Character list to contain all of the characters that have their corresponding tag,
+        // along with whether they start in the finished state or not
+        protected void registerCharacters(string tag, bool startFinished) {
             GameObject[] characterObjects = GameObject.FindGameObjectsWithTag(tag);
 
             characters = new Character[characterObjects.Length];
             for (int i = 0; i < characterObjects.Length; ++i) {
                 characters[i] = characterObjects[i].GetComponent<Character>();
+                if (startFinished) {
+                    characters[i].EndTurn();
+                }
             }
             currCharacterIndex = 0;
         }

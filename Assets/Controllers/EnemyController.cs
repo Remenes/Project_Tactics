@@ -14,8 +14,7 @@ namespace Tactics.Controller {
         // Use this for initialization
         protected override void Start() {
             playerControl = GameObject.FindObjectOfType<PlayerController>();
-            registerCharacters("Enemy");
-            print(characters.Length);
+            registerCharacters("Enemy", true);
         }
 
         // Update is called once per frame
@@ -46,11 +45,18 @@ namespace Tactics.Controller {
         // TODO: make this work for enemies of a general type rather than just enemyMeleeAI
         private void assignEnemyActions() {
             Character enemy = currentCharacter;
+
+            //TODO integrate all this into just the enemyAI component and call one function there
             EnemyMeleeAI enemyAI = currentCharacter.GetComponent<EnemyMeleeAI>();
             Character target = getClosestTarget();
             while (enemy.CanMove()) { 
-                if (enemy.CanAttackTarget(target)) {
-                    enemy.QueueAttackTarget(target);
+                if (enemy.InRangeOfTarget(target)) {
+                    if (enemy.CanAttackTarget(target)) {
+                        enemy.QueueAttackTarget(target);
+                    }
+                    else {
+                        enemy.EndTurn();
+                    }
                 }
                 else if (enemy.CanMove()) {
                     List<Cell> pathToPlayer = enemyAI.GetWantedPath(target.GetCellLocation()); //getPathTowards(playerTarget.GetCellLocation(), enemy.getMovementDistance());

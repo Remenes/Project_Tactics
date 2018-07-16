@@ -76,30 +76,7 @@ namespace Tactics.CameraUI {
             MovementIndicator playerIndicator = playerCharacter.GetComponent<MovementIndicator>();
             playerIndicator.DrawMovementLine(endLocation);
         }
-
-        //TODO remove this method
-        private List<Cell> highlightedCells = new List<Cell>();
-        private void highlightPossibleMovementLocations() {
-            var playerCharacter = /*playerControl.getCurrentPlayerCharacter() */enemyControl.GetCurrentCharacter();
-            if (!playerCharacter.isIDLE() && playerCharacter.isFinished()) { 
-                foreach (Cell cell in highlightedCells) {
-                    Material movementLocationMaterial = cell.GetComponent<Renderer>().material;
-                    movementLocationMaterial.color = initialCellColor.HasValue ? initialCellColor.Value : Color.blue;
-                }
-                highlightedCells.Clear();
-                return;
-            }
-            if (!playerCharacter.GetCellLocation()) {
-                return;
-            }
-            GridSpace.MovementLocationsInfo locationsInfo = playerCharacter.GetPossibleMovementLocations();
-            foreach (KeyValuePair<Cell, float> cellInfo in locationsInfo.costToGoThroughNode) {
-                Material movementLocationMaterial = cellInfo.Key.GetComponent<Renderer>().material;
-                movementLocationMaterial.color = Color.red;
-                highlightedCells.Add(cellInfo.Key);
-            }
-        }
-
+        
     }
 
 }

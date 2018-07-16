@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Tactics.Grid {
 
-    public enum Layer { CELL_LAYER = 8 }
+    public enum Layer { CELL_LAYER = 8, OBSTACLE_LAYER = 10 }
 
     public class GridSpace : MonoBehaviour {
 
@@ -27,6 +27,7 @@ namespace Tactics.Grid {
         }
 
         private LayerMask CELL_LAYER_MASK;
+        private LayerMask OBSTACLE_LAYER_MASK;
         [SerializeField] public const float cellSize = 1;
         //private static Vector3 cellVectorSize;
 
@@ -35,15 +36,14 @@ namespace Tactics.Grid {
         private static int cellNumber = 0;
 
         public static bool gridCreated = false;
-
-        private Vector3[] adjacentVectors = { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
-        private Vector3[] diagonalVectors = { Vector3.forward + Vector3.right, Vector3.forward + Vector3.left,
-                                              Vector3.back + Vector3.right, Vector3.back + Vector3.left};
-
+        
+        // Keep in clockwise or counter-clockwise order
+        private Vector3[] adjacentVectors = { Vector3.forward, Vector3.right, Vector3.back, Vector3.left };
         
         // Use this for initialization
         void Start() {
-            CELL_LAYER_MASK = 1 << (int) Layer.CELL_LAYER;
+            CELL_LAYER_MASK = 1 << (int)Layer.CELL_LAYER;
+            OBSTACLE_LAYER_MASK = 1 << (int)Layer.OBSTACLE_LAYER;
             //cellVectorSize = Vector3.one * cellSize;
             
             replaceBlocksWithGrid();
@@ -78,24 +78,91 @@ namespace Tactics.Grid {
         private void addCell(float cellCenterX, float cellCenterZ, Bounds blockBounds) {
             Vector3 cellLocation = new Vector3(Mathf.Floor(cellCenterX - cellSize / 2), Mathf.Floor(blockBounds.center.y), Mathf.Floor(cellCenterZ - cellSize / 2));
             cellLocation += Vector3.one * (cellSize / 2);
+            // If there's an obstacle right above
+            if (hasObstacleAbove(cellLocation))
+                return;
             Cell newCellObject = Instantiate(cellObject, cellLocation, Quaternion.identity, GameObject.Find("CellLocations").transform).GetComponent<Cell>();
             newCellObject.name = "Cell Object " + cellNumber++;
-            addAdjacentCellsTo(newCellObject, adjacentVectors, false);
-            addAdjacentCellsTo(newCellObject, diagonalVectors, true);
+            addAdjacentCellsTo(newCellObject, adjacentVectors);
         }
 
-        private void addAdjacentCellsTo(Cell cell, Vector3[] directionalVectors, bool isDiagnol) {
-            
-            foreach (Vector3 direction in directionalVectors) {
+        // Links adjacent cells to the current cell by first adding directly adjacent cells, then calling the 
+        // function to add diagonal cells
+        private void addAdjacentCellsTo(Cell cell, Vector3[] directionalVectors) {
+            Cell[] cellsAdjacent = new Cell[directionalVectors.Length];
+            for (int i = 0; i < directionalVectors.Length; ++i) {
+                Vector3 direction = directionalVectors[i];
+
                 Vector3 checkForCellAtPos = cell.transform.position + direction.normalized * cellSize;
                 Collider[] cellCollidersHit = Physics.OverlapSphere(checkForCellAtPos, .01f, CELL_LAYER_MASK);
                 //Check the spot near the cell for another cell. Checks a small radius so it should only hit one cell
                 //If it hits a cell, then that cell's the adjacent cell.
-                if (cellCollidersHit.Length == 0) { continue; }
-
+                if (cellCollidersHit.Length == 0) {
+                    cellsAdjacent[i] = null;
+                    continue;
+                }
                 Cell cellHit = cellCollidersHit[0].GetComponent<Cell>();
-                cell.linkCellTo(cellHit, isDiagnol);
+                cell.linkCellTo(cellHit, isDiagnol: false);
+
+                cellsAdjacent[i] = cellHit;
             }
+            addDiagnonalCellsTo(cell, cellsAdjacent, directionalVectors);
+        }
+
+        // Links diagonal cells to the current cell if the adjacent cells to that diagonal exists
+        // Aka. the diagonal can't be obstructed
+        // Cells list must follow the order of the "directionalVectors" variable 
+        private void addDiagnonalCellsTo(Cell cell, Cell[] adjacentCells, Vector3[] directionalVectors) {
+            if (adjacentCells.Length != directionalVectors.Length) {
+                throw new System.Exception("Error in adding Diagonal cells: AdjacentCells must match the directionalVectors in length");
+            }
+            if (adjacentCells.Length < 2) {
+                throw new System.Exception("Error in adding Diagonal cells: DirectionalVectors must have a length greater or equal to 2, since that defines the diagonal direction");
+            }
+            // Checks 3 of the diagonal directions
+            for (int i = 0; i < adjacentCells.Length - 1; ++i) {
+                Vector3 diagonalDirection = directionalVectors[i] + directionalVectors[i + 1];
+                Cell cellInDirection1 = adjacentCells[i];
+                Cell cellInDirection2 = adjacentCells[i + 1];
+                if (cellInDirection1 && cellInDirection2) {
+                    // If a diagonal cell was able to be added, then add another diagonal direction for the adjacent cells
+                    if (checkAndAddDiagonalCell(cell, diagonalDirection)) {
+                        Vector3 cellDirectionCross = cellInDirection2.transform.position - cellInDirection1.transform.position;
+                        checkAndAddDiagonalCell(cellInDirection1, cellDirectionCross);
+                    }
+                }
+            }
+            // Checks the last diagonal diretion
+            Vector3 lastDiagonalDirection = directionalVectors[0] + directionalVectors[directionalVectors.Length - 1];
+            Cell lastCellDirection1 = adjacentCells[0];
+            Cell lastCellDirection2 = adjacentCells[adjacentCells.Length - 1];
+            if (lastCellDirection1 && lastCellDirection2) {
+                // If a diagonal cell was able to be added, then add another diagonal direction for the adjacent cells
+                if (checkAndAddDiagonalCell(cell, lastDiagonalDirection)) {
+                    Vector3 lastCellDirectionCross = lastCellDirection2.transform.position - lastCellDirection1.transform.position;
+                    checkAndAddDiagonalCell(lastCellDirection1, lastCellDirectionCross);
+                }
+            }
+        }
+
+        // Helper function to check and add individual diagonal directions to the cell
+        private bool checkAndAddDiagonalCell(Cell cell, Vector3 diagonalDirection) {
+            Vector3 checkForCellAtPos = cell.transform.position + diagonalDirection.normalized * cellSize;
+            Collider[] cellCollidersHit = Physics.OverlapSphere(checkForCellAtPos, .01f, CELL_LAYER_MASK);
+            // Check the spot near the cell for another cell. Checks a small radius so it should only hit one cell
+            // If it hits a cell, then that cell's the diagonal cell.
+            if (cellCollidersHit.Length == 0) { return false; }
+
+            Cell cellHit = cellCollidersHit[0].GetComponent<Cell>();
+            cell.linkCellTo(cellHit, isDiagnol: true);
+            return true;
+        }
+
+        // Takes in the center coordinate of the cell, and returns whether there's any obstacles above it
+        private bool hasObstacleAbove(Vector3 cellLocation) {
+            Vector3 potentialObstaclePos = cellLocation + Vector3.up * cellSize / 2; 
+            Collider[] cellCollidersHit = Physics.OverlapSphere(potentialObstaclePos, .01f, OBSTACLE_LAYER_MASK);
+            return cellCollidersHit.Length > 0;
         }
 
         /// <summary>
