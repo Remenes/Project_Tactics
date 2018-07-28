@@ -77,11 +77,12 @@ namespace Tactics.Characters {
                 return actionTypes[currentIndex - 1];
             }
 
-            public Cell GetProjectedLocation() {
+            public Cell GetLastQueuedLocation() {
                 if (IsEmpty()) { return null; }
 
                 List<Cell> lastMovementPath = characterMovementsInQueue[currentIndex - 1];
-                return lastMovementPath[lastMovementPath.Count - 1];
+                Cell projectedCell = lastMovementPath[lastMovementPath.Count - 1];
+                return projectedCell;
             }
 
             public bool IsEmpty() {
@@ -95,7 +96,12 @@ namespace Tactics.Characters {
         
         private Cell currentLocation = null;
         public Cell GetCellLocation() {
-            Cell projectedCell = actionQueue.GetProjectedLocation();
+            //Cell projectedCell = actionQueue.GetProjectedLocation();
+            //return projectedCell ? projectedCell : getCellBelowCharacter();
+            return currentLocation;
+        }
+        private Cell GetProjectedLocation() {
+            Cell projectedCell = actionQueue.GetLastQueuedLocation();
             return projectedCell ? projectedCell : getCellBelowCharacter();
         }
         public Cell LinkToNewCellLocation(Cell newCell) {
@@ -103,8 +109,10 @@ namespace Tactics.Characters {
                 currentLocation.clearCharacterOnCell();
             }
             currentLocation = newCell;
-            newCell.setNewCharacterOnCell(this);
+            currentLocation.setNewCharacterOnCell(this);
+            print(gameObject.name + " is now at: " + currentLocation.gameObject.name);
             resetPossibleMovementLocations();
+            weaponSystem.ResetTargets();
             return newCell;
         }
 
@@ -213,8 +221,16 @@ namespace Tactics.Characters {
             return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
         }
 
-        public void resetPossibleMovementLocations() {
-            currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
+        // Resets all characters possible movement locations to reflect a possible change in this character
+        private void resetPossibleMovementLocations() {
+            Character[] allCharacters = GameObject.FindObjectsOfType<Character>();
+            foreach (Character character in allCharacters) {
+                if (!character.GetCellLocation()) {
+                    continue;
+                }
+                character.currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(character.GetCellLocation(), character.travelDistance + character.movementOffsetModifier);
+                //currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
+            }
         }
 
         public bool isWithinMovementRangeOf(Cell cellToMoveTo) {
@@ -234,22 +250,8 @@ namespace Tactics.Characters {
         }
         
         public HashSet<Character> GetTargetsInRange() {
-            string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
-            GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
-            HashSet<Character> charactersInRange = new HashSet<Character>();
-            float weaponRange = weaponSystem.GetCurrentWeapon().weaponRange;
-            Vector3 thisPosition = GetCellLocation().transform.position;
-            
-            foreach (GameObject characterObj in characters) {
-                Character character = characterObj.GetComponent<Character>();
-                //Position is based on the cell the character's in
-                Vector3 characterPosition = character.GetCellLocation().transform.position;
-                float distanceToCharacter = Vector3.Distance(characterPosition, thisPosition);
-                if (distanceToCharacter <= weaponRange) {
-                    charactersInRange.Add(character);
-                }
-            }
-            return charactersInRange;
+            print(gameObject.name + " has " + weaponSystem.GetTargets_BasicMelee().Count + " targets");
+            return weaponSystem.GetTargets_BasicMelee();
         }
 
 
@@ -311,7 +313,7 @@ namespace Tactics.Characters {
             }
             actionQueue.DequeueBackAction();
             // GetCellLocation looks into the actionQueue's last cell position
-            LinkToNewCellLocation(GetCellLocation());
+            LinkToNewCellLocation(GetProjectedLocation());
         }
 
         public List<List<Cell>> GetMovementPathsInfo() {
@@ -355,6 +357,7 @@ namespace Tactics.Characters {
             characterState = State.IDLE;
             numMovesLeft = maxMovePoints;
             numActionsLeft = maxActionPoints;
+            weaponSystem.ResetTargets();
         }
         
     }

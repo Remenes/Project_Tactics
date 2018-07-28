@@ -93,8 +93,6 @@ namespace Tactics.Characters {
         }
 
         private float iconPosFromRight(int index) {
-            print("Transform:" + transform.localPosition.x.ToString());
-            print("Looking here: " + (pivotPoint.x - ((index + 1) * distanceBetweenIcons)).ToString());
             return (1 - pivotPoint.x) * rect.width - ((index + 1) * distanceBetweenIcons);
         }
 

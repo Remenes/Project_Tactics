@@ -49,7 +49,6 @@ public class CameraControl : MonoBehaviour {
 
     // Lerps to get to the target rotation
     private void moveToTargetRotation() {
-        print("Target: " + targetRotationY + " | Current:" + currentRotationY);
         if (currentRotationY == targetRotationY)
             return;
 
@@ -89,10 +88,10 @@ public class CameraControl : MonoBehaviour {
         // Rotation can't be over twice the rotation amount
         if (Mathf.Abs(targetRotationY - currentRotationY) < rotationAmount * 2) {
             if (Input.GetKeyDown(UserInput.RotateRight)) {
-                targetRotationY += rotationAmount;
+                targetRotationY -= rotationAmount;
             }
             else if (Input.GetKeyDown(UserInput.RotateLeft)) {
-                targetRotationY -= rotationAmount;
+                targetRotationY += rotationAmount;
             }
         }
     }

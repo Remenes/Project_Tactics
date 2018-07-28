@@ -6,11 +6,10 @@ using UnityEngine;
 namespace Tactics.Characters {
 
     public class BasicMeleeBehavior : AbilityBehavior {
-
+        
         protected BasicMeleeConfig config;
         public int GetDamage {
             get {
-                Weapon weaponInUse = GetComponent<WeaponSystem>().GetCurrentWeapon();
                 return weaponInUse.weaponDamage;
             }
         }
@@ -25,6 +24,35 @@ namespace Tactics.Characters {
             lookAtTarget(target.transform);
             animator.SetTrigger(AttackTrigger);
             StartCoroutine(delayedDamage(target, .5f));
+        }
+
+        public override void ResetTargetsInRange() {
+            string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
+            GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
+            float weaponRange = weaponInUse.weaponRange;
+            Vector3 thisPosition = character.GetCellLocation().transform.position;
+
+            targetsInRange.Clear();
+
+            foreach (GameObject characterObj in characters) {
+                Character foundCharacter = characterObj.GetComponent<Character>();
+                if (!foundCharacter || !foundCharacter.GetCellLocation()) {
+                    continue;
+                }
+                //Position is based on the cell the character's in
+                Vector3 characterPosition = foundCharacter.GetCellLocation().transform.position;
+                float distanceToCharacter = Vector3.Distance(characterPosition, thisPosition);
+                print("Distance to: " + characterObj.name + ", is " + distanceToCharacter);
+                if (distanceToCharacter <= weaponRange) {
+                    if (!targetObstructed(foundCharacter)) {
+                        print("Target aquired");
+                        targetsInRange.Add(foundCharacter);
+                    }
+                    else {
+                        print("Target obstructed");
+                    }
+                }
+            }
         }
 
         private void overrideAnimationWithWeapon(Weapon weaponForAnimation) {

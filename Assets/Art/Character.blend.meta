@@ -4,11 +4,50 @@ ModelImporter:
   serializedVersion: 22
   fileIDToRecycleName:
     100000: //RootNode
+    100002: Arm_Left
+    100004: Armature
+    100006: Character
+    100008: Foot_Left
+    100010: ForeArm_Left
+    100012: Hair
+    100014: Hand_Left
+    100016: Head
+    100018: Hips
+    100020: IK_Hand_Left
+    100022: IK_Pole_Hand_Left
+    100024: Leg_Left
+    100026: Spine
+    100028: Thigh_Left
     400000: //RootNode
+    400002: Arm_Left
+    400004: Armature
+    400006: Character
+    400008: Foot_Left
+    400010: ForeArm_Left
+    400012: Hair
+    400014: Hand_Left
+    400016: Head
+    400018: Hips
+    400020: IK_Hand_Left
+    400022: IK_Pole_Hand_Left
+    400024: Leg_Left
+    400026: Spine
+    400028: Thigh_Left
     2100000: unnamed
+    2100002: Pants
+    2100004: Torso
+    2100006: Boots
+    2100008: Skin
+    2100010: Hair
     2300000: //RootNode
+    2300002: Character
+    2300004: Hair
     3300000: //RootNode
+    3300002: Character
+    3300004: Hair
     4300000: Cube
+    4300002: Character
+    4300004: Hair
     7400000: Default Take
     9500000: //RootNode
   externalObjects: {}

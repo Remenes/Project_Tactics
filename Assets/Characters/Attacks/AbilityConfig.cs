@@ -6,6 +6,8 @@ namespace Tactics.Characters {
 
     public abstract class AbilityConfig : ScriptableObject {
 
+        //TODO create a "requires targets" variable to check whether this skill requires a target
+
         [SerializeField] private AnimationClip alternateAbilityAnimation;
         public AnimationClip GetAbilityAnimation() { return alternateAbilityAnimation; }
 

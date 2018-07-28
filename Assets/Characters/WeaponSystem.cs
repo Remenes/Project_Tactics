@@ -28,6 +28,15 @@ namespace Tactics.Characters {
             meleeBehavior.Use(target, weaponForAnimation: weaponInUse);
         }
 
+        public HashSet<Character> GetTargets_BasicMelee() {
+            return meleeBehavior.GetTargetsInRange();
+        }
+
+        // Resets targets for all abilities
+        public void ResetTargets() {
+            meleeBehavior.ResetTargetsInRange();
+        }
+
         public Weapon GetCurrentWeapon() {
             return weaponInUse;
         }
