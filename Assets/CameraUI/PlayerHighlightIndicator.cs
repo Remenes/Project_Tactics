@@ -11,15 +11,17 @@ namespace Tactics.CameraUI {
 
     public class PlayerHighlightIndicator : MonoBehaviour {
 
+        [SerializeField] private GameObject playerIndicator;
+        [SerializeField] private GameObject playerSelectedIndicator;
         [SerializeField] private GameObject highlightIndicator;
         [SerializeField] private GameObject turnEndedIndicator;
         [SerializeField] private GameObject enemyTargetIndicator;
         [SerializeField] private GameObject enemyInRangeIndicator;
 
-        private GameObject highlightPlayerIndicator;
         private GameObject highlightCursorIndicator;
-        // For assosciating a highlight with every enemy and can be simply enabled/disabled when the time comes
+        // For assosciating a highlight with every enemy/player and can be simply enabled/disabled when the time comes
         private Dictionary<Character, GameObject> enemyHighlights;
+        private Dictionary<Character, GameObject> playerHighlights;
 
         EnemyController enemyControl;
         PlayerController playerControl;
@@ -33,20 +35,39 @@ namespace Tactics.CameraUI {
 
         private void signalAllHighlightDisable() {
             disableHighlight(highlightCursorIndicator);
-            disableHighlight(highlightPlayerIndicator);
-            //highlightCursorIndicator.SetActive(false);
-            //highlightPlayerIndicator.SetActive(false);
+            foreach (GameObject highlights in playerHighlights.Values) {
+                disableHighlight(highlights);
+            }
             foreach (GameObject highlights in enemyHighlights.Values) {
                 disableHighlight(highlights);
-                //highlights.SetActive(false);
             }
         }
 
+        // For passing in a variable reference
         private void switchHighlight(ref GameObject highlightInstance, GameObject highlightPrefabToBecome) {
             Transform highlightInstanceTransform = highlightInstance.transform;
             Destroy(highlightInstance);
             highlightInstance = Instantiate(highlightPrefabToBecome);
             highlightInstance.transform.position = highlightInstanceTransform.position;
+        }
+
+        // For passing in a key to a dictionary and switching that one highlight specified by the key in the dictionary with the highlightPrefab
+        private void switchHighlight(Dictionary<Character, GameObject> groupHighlight, Character key, GameObject highlightPrefabToBecome) {
+            Transform highlightInstanceTransform = groupHighlight[key].transform;
+            Destroy(groupHighlight[key]);
+            groupHighlight[key] = Instantiate(highlightPrefabToBecome);
+            groupHighlight[key].transform.position = highlightInstanceTransform.position;
+        }
+
+        // For passing in a dictionary to change each highlight in that dictionary
+        private void switchGroupHighlight(Dictionary<Character, GameObject> groupHighlight, GameObject highlightPrefabToBecome) {
+            List<Character> keys = new List<Character>(groupHighlight.Keys);
+            foreach (Character character in keys) {
+                Transform highlightInstanceTransform = groupHighlight[character].transform;
+                Destroy(groupHighlight[character]);
+                groupHighlight[character] = Instantiate(highlightPrefabToBecome);
+                groupHighlight[character].transform.position = highlightInstanceTransform.position;
+            }
         }
 
         private void disableHighlight(GameObject highlightInstance) {
@@ -57,7 +78,7 @@ namespace Tactics.CameraUI {
             highlight.SetActive(true);
             // Add an offset so that the indicator is slightly above the top of the cell;
             Vector3 yOffset = Vector3.up * GridSpace.cellSize / 2 + Vector3.up * Mathf.Epsilon;
-            Vector3 newHighlightPos = newCell.transform.position + Vector3.up * GridSpace.cellSize / 2;
+            Vector3 newHighlightPos = newCell.transform.position + Vector3.up * GridSpace.cellSize / 2 + yOffset;
             highlight.transform.position = newHighlightPos;
         }
 
@@ -113,17 +134,20 @@ namespace Tactics.CameraUI {
         // ------- Functions to use in events ---------------
         // ---------------------------------------------------------------------------------------
 
-        private void signalPlayerIndicatorChange() {
+        private void signalPlayersIndicatorChange() {
             if (playerControl.GetTurnFinished()) {
                 return;
             }
-            highlightPlayerIndicator.SetActive(true);
-            setHighlightActivePosition(highlightPlayerIndicator, currentPlayerCharacter.GetCellLocation());
+            foreach (Character character in playerControl.GetCharacters()) {
+                playerHighlights[character].SetActive(true);
+                setHighlightActivePosition(playerHighlights[character], character.GetCellLocation());
+            }
         }
 
         private void resetPlayerIndicator() {
-            switchHighlight(ref highlightPlayerIndicator, highlightIndicator);
-            signalPlayerIndicatorChange();
+            switchGroupHighlight(playerHighlights, playerIndicator);
+            switchHighlight(playerHighlights, currentPlayerCharacter, playerSelectedIndicator);
+            signalPlayersIndicatorChange();
             highlightEnemiesInRange();
         }
 
@@ -148,19 +172,25 @@ namespace Tactics.CameraUI {
 
         private void updateOnPlayerAction() {
             if (playerCharacterChanged()) {
+                // TODO: instead of changing highlight, add an animation to it
+                if (!currentPlayerCharacter.FinishedActionQueue()) {
+                    switchHighlight(playerHighlights, currentPlayerCharacter, playerIndicator);
+                }
                 currentPlayerCharacter = playerControl.GetCurrentCharacter();
             }
             if (currentPlayerCharacter.FinishedActionQueue()) {
-                switchHighlight(ref highlightPlayerIndicator, turnEndedIndicator);
+                // Also reset the highlight for the cursor, just in case they were over an enemy at the time
+                switchHighlight(ref highlightCursorIndicator, highlightIndicator);
+                switchHighlight(playerHighlights, currentPlayerCharacter, turnEndedIndicator);
             }
             else {
-                switchHighlight(ref highlightPlayerIndicator, highlightIndicator);
+                switchHighlight(playerHighlights, currentPlayerCharacter, playerSelectedIndicator);
             }
             if (playerControl.GetTurnFinished() || playerControl.GetExecutingActions()) {
                 signalAllHighlightDisable();
                 return;
             }
-            signalPlayerIndicatorChange();
+            signalPlayersIndicatorChange();
             highlightEnemiesInRange();
             // Let's the cursor refresh itself to remove the highlight for the enemy that the cursor is over
             if (currentPlayerCharacter.HasActionPoints()) {
@@ -172,13 +202,11 @@ namespace Tactics.CameraUI {
         // ------------Register necessary objects --------------
         // ---------------------------------------------------------------------------------------
 
-        private void registerPlayerController() {
-            playerControl = GetComponent<PlayerController>();
-            currentPlayerCharacter = playerControl.GetCurrentCharacter();
+        private void registerPlayerObservers() {
             playerControl.PlayerActionObservers += updateOnPlayerAction;
-            playerControl.CharactersFinishedExecutingObservers += signalPlayerIndicatorChange;
+            playerControl.CharactersFinishedExecutingObservers += signalPlayersIndicatorChange;
             playerControl.TurnResettedObservers += resetPlayerIndicator;
-            signalPlayerIndicatorChange();
+            signalPlayersIndicatorChange();
         }
 
         private void registerCameraRaycast() {
@@ -188,11 +216,21 @@ namespace Tactics.CameraUI {
         }
 
         private void registerHighlightedObjects() {
-            highlightPlayerIndicator = Instantiate(highlightIndicator);
-            highlightPlayerIndicator.SetActive(false);
             highlightCursorIndicator = Instantiate(highlightIndicator);
             highlightCursorIndicator.SetActive(false);
             registerEnemyHighlights();
+            registerPlayerHighlightsAndController();
+        }
+
+        private void registerPlayerHighlightsAndController() {
+            playerControl = GetComponent<PlayerController>();
+            currentPlayerCharacter = playerControl.GetCurrentCharacter();
+            playerHighlights = new Dictionary<Character, GameObject>();
+            foreach (Character playerChar in playerControl.GetCharacters()) {
+                playerHighlights[playerChar] = Instantiate(playerIndicator);
+                playerHighlights[playerChar].SetActive(false);
+            }
+            switchHighlight(playerHighlights, currentPlayerCharacter, playerSelectedIndicator);
         }
 
         private void registerEnemyHighlights() {
@@ -215,7 +253,7 @@ namespace Tactics.CameraUI {
         private IEnumerator registerObjects() {
             yield return new WaitForSeconds(0.5f);
             registerHighlightedObjects();
-            registerPlayerController();
+            registerPlayerObservers();
             registerCameraRaycast();
         }
         

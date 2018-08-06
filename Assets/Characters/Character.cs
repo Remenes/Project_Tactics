@@ -246,11 +246,8 @@ namespace Tactics.Characters {
         }
         
         public HashSet<Character> GetTargetsInRange() {
-            print(gameObject.name + " has " + weaponSystem.GetTargets_BasicMelee().Count + " targets");
             return weaponSystem.GetTargets_BasicMelee();
         }
-
-
 
         // ---------------------------------------
         // ---------- Action Queue Functions -------------
