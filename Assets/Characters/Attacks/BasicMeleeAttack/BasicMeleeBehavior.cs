@@ -42,14 +42,9 @@ namespace Tactics.Characters {
                 //Position is based on the cell the character's in
                 Vector3 characterPosition = foundCharacter.GetCellLocation().transform.position;
                 float distanceToCharacter = Vector3.Distance(characterPosition, thisPosition);
-                print("Distance to: " + characterObj.name + ", is " + distanceToCharacter);
                 if (distanceToCharacter <= weaponRange) {
                     if (!targetObstructed(foundCharacter)) {
-                        print("Target aquired");
                         targetsInRange.Add(foundCharacter);
-                    }
-                    else {
-                        print("Target obstructed");
                     }
                 }
             }

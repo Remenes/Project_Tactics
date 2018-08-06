@@ -222,7 +222,7 @@ namespace Tactics.Grid {
                     continue;
                 }
                 if (cellsWithCharacter != null) {
-                    if (neighbor.getCharacterOnCell()) {
+                    if (neighbor.GetCharacterOnCell()) {
                         if (!cellsWithCharacter.Contains(neighbor)) {
                             cellsWithCharacter.Add(neighbor);
                         }

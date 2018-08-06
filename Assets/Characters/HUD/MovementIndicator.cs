@@ -19,7 +19,7 @@ namespace Tactics.CameraUI {
         }
         
         public void DrawMovementLine(Cell endLocation) {
-            if (!character.isIDLE() || character.isFinished()) {
+            if (!character.IsIDLE() || character.IsFinished()) {
                 movementLine.enabled = false;
                 return;
             }
@@ -41,7 +41,7 @@ namespace Tactics.CameraUI {
             List<Cell> currentCellPath = GridSpace.GetPathFromLinks(character.GetPossibleMovementLocations(), character.GetCellLocation(), endLocation);
             List<Cell> cellPath = cellsFromCurrentMovementPath();
 
-            if (currentCellPath != null && !endLocation.getCharacterOnCell() && character.CanMove()) {
+            if (currentCellPath != null && !endLocation.GetCharacterOnCell() && character.CanMove()) {
                 if (cellPath.Count > 0) {
                     cellPath.RemoveAt(cellPath.Count - 1);
                 }

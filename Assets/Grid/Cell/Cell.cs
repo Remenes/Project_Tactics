@@ -9,7 +9,7 @@ namespace Tactics.Grid {
     public class Cell : MonoBehaviour {
 
         private Character characterOnCell;
-        public Character getCharacterOnCell() { return characterOnCell; }
+        public Character GetCharacterOnCell() { return characterOnCell; }
         public void clearCharacterOnCell() { characterOnCell = null; }
         /// <summary>
         /// Do not call this method. All cell linking should be called in the character class.

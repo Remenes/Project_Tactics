@@ -9,7 +9,7 @@ using Tactics.Characters;
 namespace Tactics.Controller {
 
     public abstract class Controller : MonoBehaviour {
-        
+
         protected Character[] characters;
         protected int currCharacterIndex;
         public Character[] GetCharacters() { return characters; }
@@ -20,8 +20,9 @@ namespace Tactics.Controller {
 
         protected bool turnFinished = false;
         public bool GetTurnFinished() { return turnFinished; }
+        public bool GetExecutingActions() { return executingActions; }
 
-        protected abstract void Start();
+        protected abstract void Awake();
         protected abstract void Update();
 
         // Assigns the Character list to contain all of the characters that have their corresponding tag,
@@ -52,7 +53,7 @@ namespace Tactics.Controller {
         // Checks if all characters are either IDLE or FINISHED
         protected bool charactersDoneWithActions() {
             foreach (Character character in characters) {
-                if (!character.isFinished() && !character.isIDLE()) {
+                if (!character.IsFinished() && !character.IsIDLE()) {
                     return false;
                 }
             }
@@ -78,14 +79,14 @@ namespace Tactics.Controller {
         /*
         // Perform a move or attack depending on which cell was checked
         private void inputActionCommand() {
-            Character target = highlighedCell.getCharacterOnCell();
+            Character target = highlighedCell.GetCharacterOnCell();
             if (target != null) {
                 if (getCurrentPlayerCharacter().CanAttackTarget(target)) {
                     getCurrentPlayerCharacter().QueueAttackTarget(target);
                 }
             }
             else if (getCurrentPlayerCharacter().CanMove() &&
-                getCurrentPlayerCharacter().isWithinMovementRangeOf(highlighedCell)) {
+                getCurrentPlayerCharacter().WithinMovementRangeOf(highlighedCell)) {
                 List<Cell> path = GridSpace.GetPathFromLinks(
                     getCurrentPlayerCharacter().GetPossibleMovementLocations(),
                     getCurrentPlayerCharacter().GetCellLocation(), highlighedCell);
@@ -98,7 +99,7 @@ namespace Tactics.Controller {
         public List<Cell> FindPathTowardsAdjacentCharacter(Cell cellWithCharacter) {
             HashSet<Cell> surroundingCells = cellWithCharacter.getAllSurroundingCells();
             foreach (Cell cell in surroundingCells) {
-                if (GetCurrentCharacter().isWithinMovementRangeOf(cell)) {
+                if (GetCurrentCharacter().WithinMovementRangeOf(cell)) {
                     return GridSpace.GetPathFromLinks(
                         GetCurrentCharacter().GetPossibleMovementLocations(),
                         GetCurrentCharacter().GetCellLocation(), cell);
@@ -108,7 +109,7 @@ namespace Tactics.Controller {
         }
 
         // Resets the controller's turn and all their characters
-        public void ResetTurn() {
+        public virtual void ResetTurn() {
             turnFinished = false;
             foreach (Character character in characters) {
                 character.ResetCharacterState();

@@ -9,15 +9,19 @@ using Tactics.Characters;
 namespace Tactics.Controller {
 
     public class PlayerController : Controller {
+        
+        public static string PLAYER_TAG = "Player";
 
         private Cell highlighedCell;
 
         public delegate void OnPlayerAction();
-        public event OnPlayerAction playerActionObservers;
+        public event OnPlayerAction PlayerActionObservers;
+        public event OnPlayerAction CharactersFinishedExecutingObservers;
+        public event OnPlayerAction TurnResettedObservers;
         
         // Use this for initialization
-        protected override void Start() {
-            registerCharacters("Player", false);
+        protected override void Awake() {
+            registerCharacters(PLAYER_TAG, false);
             registerCameraRaycast();
         }
 
@@ -35,6 +39,12 @@ namespace Tactics.Controller {
             // Check if the actions are still executing or not and return if they are still executing actions
             if (executingActions) {
                 if (charactersDoneWithActions()) {
+                    // Check to see if their characters are finished right after they are done with actions, so 
+                    // the appropriate turnFinished variable may be passed into the Observers
+                    if (compareAllCharactersStateTo(State.FINISHED)) {
+                        turnFinished = true;
+                    }
+                    CharactersFinishedExecutingObservers();
                     executingActions = false;
                 }
                 if (executingActions) {
@@ -42,7 +52,8 @@ namespace Tactics.Controller {
                 }
             }
 
-            // Set the players turn to finished if all their characters are finished
+            // Set the players turn to finished if all their characters are finished. This can happen
+            // when actions are not executing when the player manually ends their characters turn
             if (compareAllCharactersStateTo(State.FINISHED)) {
                 turnFinished = true;
                 return;
@@ -60,16 +71,16 @@ namespace Tactics.Controller {
             // TODO make a keyboard input class/struct for this
             if (Input.GetKeyDown(UserInput.SwitchCharacterUp)) {
                 incCurrentIndex();
-                playerActionObservers();
+                PlayerActionObservers();
             }
             if (Input.GetKeyDown(UserInput.SwitchCharacterDown)) {
                 decCurrentIndex();
-                playerActionObservers();
+                PlayerActionObservers();
             }
 
             if (Input.GetKeyDown(UserInput.ExecuteActions)) {
                 executeActions();
-                playerActionObservers();
+                PlayerActionObservers();
                 return;
             }
 
@@ -80,30 +91,30 @@ namespace Tactics.Controller {
             //executingActions = false;
             if (Mouse.RightClicked) {
                 inputUndoCommand();
-                playerActionObservers();
+                PlayerActionObservers();
             }
 
             if (Mouse.LeftClicked && highlighedCell != null) {
                 inputActionCommand();
-                playerActionObservers();
+                PlayerActionObservers();
             }
 
             if (Input.GetKeyDown(UserInput.EndTurn)) {
                 endTurnCommand();
-                playerActionObservers();
+                PlayerActionObservers();
             }
         }
 
         // Perform a move or attack depending on which cell was checked
         private void inputActionCommand(){
-            Character target = highlighedCell.getCharacterOnCell();
+            Character target = highlighedCell.GetCharacterOnCell();
             if (target != null) {
                 if (currentCharacter.CanAttackTarget(target)) {
                     currentCharacter.QueueAttackTarget(target);
                 }
             }
             else if (currentCharacter.CanMove() && 
-                currentCharacter.isWithinMovementRangeOf(highlighedCell)) {
+                currentCharacter.WithinMovementRangeOf(highlighedCell)) {
                 List<Cell> path = GridSpace.GetPathFromLinks(
                     currentCharacter.GetPossibleMovementLocations(),
                     currentCharacter.GetCellLocation(), highlighedCell);
@@ -138,7 +149,13 @@ namespace Tactics.Controller {
                 currentCharacter.EndTurn();
             }
         }
-        
+
+        // Modify's ResetTurn to additionally call TurnResettedObservers so that other things may know when this turn was resetted
+        public override void ResetTurn() {
+            base.ResetTurn();
+            TurnResettedObservers();
+        }
+
     }
 
 }

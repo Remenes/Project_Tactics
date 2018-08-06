@@ -9,12 +9,14 @@ namespace Tactics.Controller {
 
     public class EnemyController : Controller {
         
+        public static string ENEMY_TAG = "Enemy";
+
         PlayerController playerControl;
         
         // Use this for initialization
-        protected override void Start() {
+        protected override void Awake() {
             playerControl = GameObject.FindObjectOfType<PlayerController>();
-            registerCharacters("Enemy", true);
+            registerCharacters(ENEMY_TAG, true);
         }
 
         // Update is called once per frame

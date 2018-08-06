@@ -218,7 +218,7 @@ namespace Tactics.Characters {
         }
 
         private bool cellHasEnemy(Cell cell) {
-            return cell.getCharacterOnCell() != null && cell.getCharacterOnCell() != this;
+            return cell.GetCharacterOnCell() != null && cell.GetCharacterOnCell() != this;
         }
 
         // Resets all characters possible movement locations to reflect a possible change in this character
@@ -231,10 +231,6 @@ namespace Tactics.Characters {
                 character.currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(character.GetCellLocation(), character.travelDistance + character.movementOffsetModifier);
                 //currentPossibleMovementLocations = GridSpace.GetPossibleMovementLocations(currentLocation, travelDistance + movementOffsetModifier);
             }
-        }
-
-        public bool isWithinMovementRangeOf(Cell cellToMoveTo) {
-            return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
         }
 
         // ---------------------------------------
@@ -294,7 +290,7 @@ namespace Tactics.Characters {
         public void QueueAttackTarget(Character target) {
             if (!GetTargetsInRange().Contains(target))
                 throw new System.Exception("Trying to attack a target that's not in range");
-            if (!CanPerformActions()) 
+            if (!HasActionPoints()) 
                 throw new System.Exception("Trying to attack when no moves are available");
             print("Queuing attack action");
             --numActionsLeft;
@@ -325,7 +321,8 @@ namespace Tactics.Characters {
         // ---------------------------------------
 
         public bool CanMove() { return numMovesLeft > 0 || numActionsLeft > 0; }
-        public bool CanPerformActions() { return numActionsLeft > 0; }
+        public bool FinishedActionQueue() { return !CanMove(); }
+        public bool HasActionPoints() { return numActionsLeft > 0; }
         public bool UsedActions() {
             return numMovesLeft < maxMovePoints || numActionsLeft < maxActionPoints;
         }
@@ -333,15 +330,18 @@ namespace Tactics.Characters {
         public int GetMaxActions() { return maxActionPoints; }
         public int GetNumMovesLeft() { return numMovesLeft; }
         public int GetNumActionsLeft() { return numActionsLeft; }
-        
+
+        public bool WithinMovementRangeOf(Cell cellToMoveTo) {
+            return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
+        }
         public bool InRangeOfTarget(Character target) { return GetTargetsInRange().Contains(target); }
         public bool CanAttackTarget(Character target) {
             return numActionsLeft > 0 && InRangeOfTarget(target);
         }
         public bool HasActionsQueued() { return !actionQueue.IsEmpty(); }
         public State GetCharacterState() { return characterState; }
-        public bool isIDLE() { return characterState == State.IDLE; }
-        public bool isFinished() { return characterState == State.FINISHED; }
+        public bool IsIDLE() { return characterState == State.IDLE; }
+        public bool IsFinished() { return characterState == State.FINISHED; }
 
         // ---------------------------------------
         // ---------- Setter Functions -------------

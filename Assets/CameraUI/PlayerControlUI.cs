@@ -32,7 +32,7 @@ namespace Tactics.CameraUI {
         private void registerPlayerController() {
             playerControl = GetComponent<PlayerController>();
             playerCharacter = playerControl.GetCurrentCharacter();
-            playerControl.playerActionObservers += updateAllMovementLine;
+            playerControl.PlayerActionObservers += updateAllMovementLine;
         }
 
         private void changeCurrentCellColorEntered(Cell cell) {
