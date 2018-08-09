@@ -91,12 +91,13 @@ namespace Tactics.CameraUI {
             // If the player had previously targetted an enemy, but is no longer targetting him
             if (targettingEnemy && targettingEnemy != enemyOnCell) {
                 // Re-highlight all enemies
-                highlightEnemiesInRange();
+                highlightEnemiesInAbilityRange();
             }
 
             if (cellHasEnemyCharacter) {
                 // If the current character can attack the target, switch to the attack indicator if need be
-                if (currentPlayerCharacter.CanAttackTarget(enemyOnCell)) {
+                //if (currentPlayerCharacter.CanAttackTarget(enemyOnCell)) {
+                if (playerControl.CurrCharacterCanTarget(enemyOnCell)) {
                     if (!targettingEnemy || targettingEnemy != enemyOnCell) {
                         targettingEnemy = cell.GetCharacterOnCell();
                         switchHighlight(ref highlightCursorIndicator, enemyTargetIndicator);
@@ -118,7 +119,8 @@ namespace Tactics.CameraUI {
         }
 
         // Helper function to get called in updateOnPlayerActions
-        // which highlights enemies in range after the player performs an action
+        // which highlights enemies in range after the player performs an action.
+        // Does not take into account abilities, so use highlightEnemiesInAbilityRange if checking abilities are needed
         private void highlightEnemiesInRange() {
             foreach (Character enemy in enemyControl.GetCharacters()) {
                 if (currentPlayerCharacter.CanAttackTarget(enemy)) {
@@ -130,11 +132,36 @@ namespace Tactics.CameraUI {
             }
         }
 
+        // Helper function to get called in when the player changes abilities
+        // which highlights enemies in range of the corresponding ability
+        private void highlightEnemiesInRange(int abilityIndex) {
+            print("Now on ability " + abilityIndex);
+            // If the player switched to not using an ability, use the default highlight instead
+            if (!playerControl.IsUsingAbility()) {
+                highlightEnemiesInRange();
+                return;
+            }
+            foreach (Character enemy in enemyControl.GetCharacters()) {
+                if (currentPlayerCharacter.CanUseAbilitiesOn(enemy, abilityIndex)) {
+                    setHighlightActivePosition(enemyHighlights[enemy], enemy.GetCellLocation());
+                }
+                else {
+                    disableHighlight(enemyHighlights[enemy]);
+                }
+            }
+        }
+
+        // Helper function for general functions. Use this if taking into account the current active abilities to highlight enemies
+        private void highlightEnemiesInAbilityRange() {
+            highlightEnemiesInRange(playerControl.CurrentAbilityIndex());
+        }
+
+
         // ---------------------------------------------------------------------------------------
         // ------- Functions to use in events ---------------
         // ---------------------------------------------------------------------------------------
 
-        private void signalPlayersIndicatorChange() {
+        private void signalPlayersReactivateHighlights() {
             if (playerControl.GetTurnFinished()) {
                 return;
             }
@@ -147,7 +174,7 @@ namespace Tactics.CameraUI {
         private void resetPlayerIndicator() {
             switchGroupHighlight(playerHighlights, playerIndicator);
             switchHighlight(playerHighlights, currentPlayerCharacter, playerSelectedIndicator);
-            signalPlayersIndicatorChange();
+            signalPlayersReactivateHighlights();
             highlightEnemiesInRange();
         }
 
@@ -156,7 +183,8 @@ namespace Tactics.CameraUI {
             bool cellHasPlayerCharacter = characterOnCell && 
                                           characterOnCell.CompareTag(PlayerController.PLAYER_TAG);
             bool cellHasTargetButCantAttack = cell.GetCharacterOnCell() &&
-                                          !currentPlayerCharacter.CanAttackTarget(characterOnCell);
+                                          //!currentPlayerCharacter.CanAttackTarget(characterOnCell);
+                                          !playerControl.CurrCharacterCanTarget(characterOnCell);
 
             if (currentPlayerCharacter.FinishedActionQueue() || cellHasPlayerCharacter || cellHasTargetButCantAttack) {
                 highlightCursorIndicator.SetActive(false);
@@ -190,8 +218,9 @@ namespace Tactics.CameraUI {
                 signalAllHighlightDisable();
                 return;
             }
-            signalPlayersIndicatorChange();
-            highlightEnemiesInRange();
+            signalPlayersReactivateHighlights();
+            
+            highlightEnemiesInAbilityRange();
             // Let's the cursor refresh itself to remove the highlight for the enemy that the cursor is over
             if (currentPlayerCharacter.HasActionPoints()) {
                 targettingEnemy = null;
@@ -204,9 +233,10 @@ namespace Tactics.CameraUI {
 
         private void registerPlayerObservers() {
             playerControl.PlayerActionObservers += updateOnPlayerAction;
-            playerControl.CharactersFinishedExecutingObservers += signalPlayersIndicatorChange;
+            playerControl.CharactersFinishedExecutingObservers += signalPlayersReactivateHighlights;
             playerControl.TurnResettedObservers += resetPlayerIndicator;
-            signalPlayersIndicatorChange();
+            playerControl.PlayerChangedAbilityObservers += highlightEnemiesInRange;
+            signalPlayersReactivateHighlights();
         }
 
         private void registerCameraRaycast() {

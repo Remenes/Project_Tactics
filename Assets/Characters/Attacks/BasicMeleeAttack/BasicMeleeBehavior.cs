@@ -5,19 +5,21 @@ using UnityEngine;
 
 namespace Tactics.Characters {
 
-    public class BasicMeleeBehavior : AbilityBehavior {
+    public class BasicAttackBehavior : AbilityBehavior {
         
         protected BasicMeleeConfig config;
-        public int GetDamage {
-            get {
-                return weaponInUse.weaponDamage;
-            }
+        public int GetDamage() {
+            return (config.UseWeaponDmg ? weaponInUse.weaponDamage : 0) + config.GetAdditionalDmg; 
+        }
+        public float GetRange() {
+            return (config.UseWeaponRange ? weaponInUse.weaponRange : 0) + config.GetAdditionalRange; 
         }
 
         void Start() {
             config = abilityConfig as BasicMeleeConfig;
         }
 
+        // TODO: Consider changing weaponForAnimation to a bool in the config
         public override void Use(Character target, Weapon weaponForAnimation = null) {
             //Override Animation with Weapon animation, since basic attacks should use the weapon's animation
             overrideAnimationWithWeapon(weaponForAnimation);
@@ -29,7 +31,7 @@ namespace Tactics.Characters {
         public override void ResetTargetsInRange() {
             string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
-            float weaponRange = weaponInUse.weaponRange;
+            float weaponRange = GetRange();
             Vector3 thisPosition = character.GetCellLocation().transform.position;
 
             targetsInRange.Clear();
@@ -64,7 +66,7 @@ namespace Tactics.Characters {
             }
             else {
                 yield return new WaitForSeconds(delayTime);
-                targetHealth.TakeDamage(GetDamage);
+                targetHealth.TakeDamage(GetDamage());
             }
         }
 

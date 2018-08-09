@@ -19,9 +19,15 @@ namespace Tactics.Characters {
 
         private class ActionQueue {
 
+            // For storing what cells it took to get them to the new position
             List<Cell>[] characterMovementsInQueue;
+            // For storing the action IEnumerator to perform
             IEnumerator[] actionQueue;
+            // For storing whether the action is a movement or action
             ActionType[] actionTypes;
+            // For storing how much points it took to perform this action
+            int[] pointsUsedQueue;
+
             int queueSize;
             int currentIndex; //Points to the index after the last action
 
@@ -30,14 +36,16 @@ namespace Tactics.Characters {
                 actionQueue = new IEnumerator[queueSize];
                 characterMovementsInQueue = new List<Cell>[queueSize];
                 actionTypes = new ActionType[queueSize];
+                pointsUsedQueue = new int[queueSize];
                 currentIndex = 0;
             }
 
-            public void QueueAction(IEnumerator action, List<Cell> newMovementPath, ActionType actionType) {
+            public void QueueAction(IEnumerator action, List<Cell> newMovementPath, ActionType actionType, int pointsUsed) {
                 if (currentIndex >= queueSize)
                     throw new System.Exception("Adding to Action Queue when it's full");
                 actionQueue[currentIndex] = action;
                 actionTypes[currentIndex] = actionType;
+                pointsUsedQueue[currentIndex] = pointsUsed;
                 characterMovementsInQueue[currentIndex++] = newMovementPath;
             }
 
@@ -46,7 +54,7 @@ namespace Tactics.Characters {
                     throw new System.Exception("Dequeuing Back Action Queue when it's empty");
                 actionQueue[--currentIndex] = null;
                 characterMovementsInQueue[currentIndex] = null;
-                // Don't need to worry about the actiontypes since it's an enum type
+                // Don't need to worry about the actiontypes/pointsUsed since it's an enum/int type
                 return actionQueue[currentIndex];
             }
 
@@ -58,10 +66,11 @@ namespace Tactics.Characters {
                     actionQueue[i - 1] = actionQueue[i];
                     characterMovementsInQueue[i - 1] = characterMovementsInQueue[i];
                     actionTypes[i - 1] = actionTypes[i];
+                    pointsUsedQueue[i - 1] = pointsUsedQueue[i];
                 }
                 actionQueue[--currentIndex] = null;
                 characterMovementsInQueue[currentIndex] = null;
-                // Don't need to worry about the actiontypes since it's an enum type
+                // Don't need to worry about the actiontypes/pointsUsed since it's an enum/int type
                 return action;
             }
 
@@ -75,6 +84,10 @@ namespace Tactics.Characters {
 
             public ActionType GetBackActionType() {
                 return actionTypes[currentIndex - 1];
+            }
+
+            public int GetBackPointsUsed() {
+                return pointsUsedQueue[currentIndex - 1];
             }
 
             public Cell GetLastQueuedLocation() {
@@ -239,14 +252,23 @@ namespace Tactics.Characters {
 
         private IEnumerator attackTarget(Character target) {
             characterState = State.ATTACKING;
-            //target.GetComponent<Health>().TakeDamage(weapon.weaponDamage);
-            //TODO Maybe also sync up the WaitForSeconds
+            //TODO Sync up the WaitForSeconds
             weaponSystem.Attack_BasicMelee(target);
             yield return new WaitForSeconds(1f);
+        }
+
+        private IEnumerator useAbility(Character target, int abilityIndex) {
+            characterState = State.ATTACKING;
+            weaponSystem.Attack_Ability(target, abilityIndex);
+            yield return new WaitForSeconds(1.5f);
         }
         
         public HashSet<Character> GetTargetsInRange() {
             return weaponSystem.GetTargets_BasicMelee();
+        }
+
+        public HashSet<Character> GetTargetsUsingAbility(int abilityIndex) {
+            return weaponSystem.GetTargets_Ability(abilityIndex);
         }
 
         // ---------------------------------------
@@ -280,29 +302,41 @@ namespace Tactics.Characters {
                 actionToUse = ActionType.ACTION;
             }
             LinkToNewCellLocation(cellPathToMove[cellPathToMove.Count - 1]);
-            actionQueue.QueueAction(moveCharacter(cellPathToMove), cellPathToMove, actionToUse);
+            actionQueue.QueueAction(moveCharacter(cellPathToMove), cellPathToMove, actionToUse, 1);
 
         }
 
         public void QueueAttackTarget(Character target) {
             if (!GetTargetsInRange().Contains(target))
-                throw new System.Exception("Trying to attack a target that's not in range");
+                throw new System.Exception("Queueing Attack Error: Trying to attack a target that's not in range");
             if (!HasActionPoints()) 
-                throw new System.Exception("Trying to attack when no moves are available");
+                throw new System.Exception("Queueing Attack Error: Trying to attack when no moves are available");
             print("Queuing attack action");
             --numActionsLeft;
-            actionQueue.QueueAction(attackTarget(target), currentCellAsList(), ActionType.ACTION);
+            actionQueue.QueueAction(attackTarget(target), currentCellAsList(), ActionType.ACTION, 1);
         }
-        
+
+        public void QueueAbilityUse(Character target, int abilityIndex) {
+            if (!GetTargetsUsingAbility(abilityIndex).Contains(target))
+                throw new System.Exception("Queuing Ability Error: Trying to attack a target that's not in range");
+            if (!HasActionPointsForAbility(abilityIndex))
+                throw new System.Exception("Queuing Ability Error: Trying to attack when not enough moves are available");
+            print("Queuing use ability " + abilityIndex);
+            int numPointsNeeded = GetAbilityConfig(abilityIndex).GetActionPointsNeeded();
+            numActionsLeft -= numPointsNeeded;
+            actionQueue.QueueAction(useAbility(target, abilityIndex), currentCellAsList(), ActionType.ACTION, numPointsNeeded);
+        }
+
         public void DequeueLastAction() {
             if (actionQueue.IsEmpty())
                 throw new System.Exception("Dequeueing action when size is 0");
             ActionType lastActionType = actionQueue.GetBackActionType();
+            int lastActionPointsUsed = actionQueue.GetBackPointsUsed();
             if (lastActionType == ActionType.MOVE) {
                 ++numMovesLeft;
             }
             else {
-                ++numActionsLeft;
+                numActionsLeft += lastActionPointsUsed;
             }
             actionQueue.DequeueBackAction();
             // GetCellLocation looks into the actionQueue's last cell position
@@ -317,9 +351,12 @@ namespace Tactics.Characters {
         // ---------- Getter Functions -------------
         // ---------------------------------------
 
+        // Getters for player action variables
+
         public bool CanMove() { return numMovesLeft > 0 || numActionsLeft > 0; }
         public bool FinishedActionQueue() { return !CanMove(); }
         public bool HasActionPoints() { return numActionsLeft > 0; }
+        public bool HasActionPointsForAbility(int abilityIndex) { return numActionsLeft >= GetAbilityConfig(abilityIndex).GetActionPointsNeeded(); }
         public bool UsedActions() {
             return numMovesLeft < maxMovePoints || numActionsLeft < maxActionPoints;
         }
@@ -328,17 +365,42 @@ namespace Tactics.Characters {
         public int GetNumMovesLeft() { return numMovesLeft; }
         public int GetNumActionsLeft() { return numActionsLeft; }
 
+        // Getters for checking whether something is in range of the character
+
         public bool WithinMovementRangeOf(Cell cellToMoveTo) {
             return currentPossibleMovementLocations.costToGoThroughNode.ContainsKey(cellToMoveTo);
         }
         public bool InRangeOfTarget(Character target) { return GetTargetsInRange().Contains(target); }
+        public bool InAbilityRangeOfTarget(Character target, int abilityIndex) {
+            return GetTargetsUsingAbility(abilityIndex).Contains(target);
+        }
         public bool CanAttackTarget(Character target) {
             return numActionsLeft > 0 && InRangeOfTarget(target);
         }
+        public bool CanUseAbilitiesOn(Character target, int abilityIndex) {
+            return HasActionPointsForAbility(abilityIndex) && InAbilityRangeOfTarget(target, abilityIndex);
+        }
+
+        // Getters for the state of the actionqueue and the player
+
         public bool HasActionsQueued() { return !actionQueue.IsEmpty(); }
         public State GetCharacterState() { return characterState; }
         public bool IsIDLE() { return characterState == State.IDLE; }
         public bool IsFinished() { return characterState == State.FINISHED; }
+
+        // Getters for the weapon system of this charater
+
+        public AbilityConfig GetAbilityConfig(int abilityIndex) {
+            return weaponSystem.GetAbilityConfig(abilityIndex);
+        }
+
+        public AbilityConfig GetBasicAttackConfig() {
+            return weaponSystem.GetBasicAttackConfig();
+        }
+
+        public int GetNumberOfAbilities() {
+            return weaponSystem.GetAllAbilityConfigs().Length;
+        }
 
         // ---------------------------------------
         // ---------- Setter Functions -------------

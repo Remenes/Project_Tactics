@@ -6,8 +6,13 @@ namespace Tactics.Characters {
 
     public abstract class AbilityConfig : ScriptableObject {
 
-        //TODO create a "requires targets" variable to check whether this skill requires a target
+        [Header("Ability Type")]
+        [SerializeField] private bool isAOE = false;
+        [SerializeField] private bool requiresTarget = true;
 
+        [Header("Stats Details")]
+        [SerializeField] private int actionPointsNeeded = 1;
+        public int GetActionPointsNeeded() { return actionPointsNeeded; }
         [SerializeField] private AnimationClip alternateAbilityAnimation;
         public AnimationClip GetAbilityAnimation() { return alternateAbilityAnimation; }
 
@@ -15,6 +20,7 @@ namespace Tactics.Characters {
 
         //public AbilityBehavior GetAbilityBehavior() { return abilityBehavior; }
 
+        // Simply adds the correct behavior component to the object
         protected abstract AbilityBehavior AddAbilityBehavior(GameObject objectToAddTo);
 
         public AbilityBehavior AttachAbilityBehaviorTo(GameObject objectToAddTo) {
