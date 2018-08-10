@@ -5,8 +5,8 @@ using UnityEngine;
 
 namespace Tactics.Characters {
 
-    [CreateAssetMenu(menuName = "Tactics/Abilities/BasicMelee")]
-    public class BasicMeleeConfig : AbilityConfig {
+    [CreateAssetMenu(menuName = "Tactics/Abilities/BasicAttack")]
+    public class BasicAttackConfig : AbilityConfig {
 
         [SerializeField] private bool useWeaponDmg = true;
         [SerializeField] private int additionalDmg;
@@ -19,7 +19,12 @@ namespace Tactics.Characters {
         public float GetAdditionalRange { get { return additionalRange; } }
 
         protected override AbilityBehavior AddAbilityBehavior(GameObject objectToAddTo) {
-            return objectToAddTo.AddComponent<BasicMeleeBehavior>();
+            if (!isAOE) {
+                return objectToAddTo.AddComponent<BasicAttackBehavior>();
+            }
+            else {
+                return objectToAddTo.AddComponent<BasicAOEBehavior>();
+            }
         }
 
     }

@@ -178,6 +178,14 @@ namespace Tactics.CameraUI {
             highlightEnemiesInRange();
         }
 
+        private void updateOnUsingAOEAbility(Cell cell) {
+            if (playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().IsAOE) {
+                foreach (Character targetEnemy in playerControl.GetTargetsOfCurrentAbility()) {
+                    switchHighlight(enemyHighlights, targetEnemy, enemyTargetIndicator);
+                }
+            }
+        }
+
         private void updateOnCellEntered(Cell cell) {
             Character characterOnCell = cell.GetCharacterOnCell();
             bool cellHasPlayerCharacter = characterOnCell && 
@@ -186,10 +194,23 @@ namespace Tactics.CameraUI {
                                           //!currentPlayerCharacter.CanAttackTarget(characterOnCell);
                                           !playerControl.CurrCharacterCanTarget(characterOnCell);
 
-            if (currentPlayerCharacter.FinishedActionQueue() || cellHasPlayerCharacter || cellHasTargetButCantAttack) {
+            if (currentPlayerCharacter.FinishedActionQueue() || cellHasPlayerCharacter) {
                 highlightCursorIndicator.SetActive(false);
                 return;
             }
+
+            if (playerControl.IsUsingAbility()) {
+                if (!playerControl.GetCurrentAbility().IsAOE) {
+                    if (cellHasTargetButCantAttack) {
+                        highlightCursorIndicator.SetActive(false);
+                        return;
+                    }
+                }
+                else {
+                    highlightEnemiesInAbilityRange();
+                }
+            }
+
             switchToEnemyIndicator(cell);
             setHighlightActivePosition(highlightCursorIndicator, cell);
         }

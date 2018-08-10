@@ -28,7 +28,8 @@ namespace Tactics.Controller {
         public bool IsUsingAbility() { return currentAbilityIndex != -1; }
         public int NotUsingAbilityIndex() { return -1; }
         private void resetAbilityIndex() { currentAbilityIndex = NotUsingAbilityIndex(); PlayerChangedAbilityObservers(NotUsingAbilityIndex()); }
-        
+
+        private Character invisibleTarget;
         // Use this for initialization
         protected override void Awake() {
             registerCharacters(PLAYER_TAG, false);
@@ -72,7 +73,17 @@ namespace Tactics.Controller {
         }
 
         private void updatehighlightedCell(Cell newCellLocation) {
+            if (IsUsingAbility() && GetCurrentAbility().IsAOE && highlightedCell != newCellLocation) {
+                updateAOEAbilityTargets(newCellLocation);
+            }
             highlightedCell = newCellLocation;
+        }
+
+        // For when the player is using an ability that requires a new origin via the mouse
+        private void updateAOEAbilityTargets(Cell newCellLocation) {
+            print("Updating AOE ability");
+            //Vector3 topOfCell = newCellLocation.transform.position + Vector3.up * GridSpace.cellSize / 2;
+            ResetTargetsOfCurrentAOEAbility(newCellLocation.transform.position);
         }
 
         // Checks player inputs and perform corresponding tasks 
@@ -130,6 +141,9 @@ namespace Tactics.Controller {
             for (int number = 1; number < 10; number++) {
                 if (Input.GetKeyDown(KeyCode.Alpha0 + number) && number < currentCharacter.GetNumberOfAbilities() + 1 ) {
                     currentAbilityIndex = number - 1;
+                    if (GetCurrentAbility().IsAOE) {
+                        updateAOEAbilityTargets(highlightedCell);
+                    }
                     PlayerChangedAbilityObservers(currentAbilityIndex);
                     //inputAbilityCommand(currentAbilityIndex);
                     //PlayerActionObservers();
@@ -160,6 +174,10 @@ namespace Tactics.Controller {
 
         private void inputAbilityCommand(int abilityIndex) {
             Character target = highlightedCell.GetCharacterOnCell();
+            // AOE abilities do not need a specific target
+            if (GetCurrentAbility().IsAOE) {
+                currentCharacter.QueueAbilityUse(highlightedCell.transform.position, abilityIndex);
+            }
             if (currentCharacter.CanUseAbilitiesOn(target, abilityIndex)) {
                 currentCharacter.QueueAbilityUse(highlightedCell.GetCharacterOnCell(), abilityIndex);
             }
@@ -168,18 +186,7 @@ namespace Tactics.Controller {
                 resetAbilityIndex();
             }
         }
-
-        // Call this to see if the current character can target the target character using the ability (or basic attack)
-        // that is currently selected.
-        public bool CurrCharacterCanTarget(Character target) {
-            print("Check can target");
-            if (IsUsingAbility()) {
-                print("Checking using ability");
-                return currentCharacter.CanUseAbilitiesOn(target, currentAbilityIndex);
-            }
-            return currentCharacter.CanAttackTarget(target);
-        }
-
+        
         // Perform an undo action if the undo command was pressed
         private void inputUndoCommand() {
             // Check if the player character actually used actions or not
@@ -208,6 +215,43 @@ namespace Tactics.Controller {
                 currentCharacter.EndTurn();
             }
         }
+
+        // --------------------------------------------------------------------------------------
+        // ----------Getters and Setters for the current Character's selected ability------------
+        // --------------------------------------------------------------------------------------
+
+        // Call this to see if the current character can target the target character using the ability (or basic attack)
+        // that is currently selected.
+        public bool CurrCharacterCanTarget(Character target) {
+            print("Check can target");
+            if (IsUsingAbility()) {
+                print("Checking using ability");
+                return currentCharacter.CanUseAbilitiesOn(target, currentAbilityIndex);
+            }
+            return currentCharacter.CanAttackTarget(target);
+        }
+
+        // Gets the chosen ability of the current character
+        public AbilityConfig GetCurrentAbility() {
+            if (!IsUsingAbility())
+                throw new System.Exception("Getting current ability, but no abilities are being used");
+            return currentCharacter.GetAbilityConfig(currentAbilityIndex);
+        }
+
+        // Gets the targets of the chosen ability of the current character
+        public HashSet<Character> GetTargetsOfCurrentAbility() {
+            if (!IsUsingAbility())
+                throw new System.Exception("Can't get targets of current chosen ability: no abilities being used");
+            return currentCharacter.GetTargetsUsingAbility(currentAbilityIndex);
+        }
+
+        // Resets the targets of the current AOE ability() {
+        public void ResetTargetsOfCurrentAOEAbility(Vector3 newOrigin) {
+            if (!IsUsingAbility())
+                throw new System.Exception("Can't reset targets of current chosen ability: no abilities being used");
+            currentCharacter.ResetTargetsForAOEAbility(currentAbilityIndex, newOrigin);
+        }
+
 
         // Modify's ResetTurn to additionally call TurnResettedObservers so that other things may know when this turn was resetted
         public override void ResetTurn() {

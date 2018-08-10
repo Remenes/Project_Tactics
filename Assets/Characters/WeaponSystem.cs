@@ -12,8 +12,8 @@ namespace Tactics.Characters {
 
         [Header("Basic Weapon")]
         [SerializeField] private Weapon weaponInUse;
-        [SerializeField] private BasicMeleeConfig meleeConfig;
-        BasicMeleeBehavior meleeBehavior;
+        [SerializeField] private BasicAttackConfig meleeConfig;
+        BasicAttackBehavior meleeBehavior;
 
         [Header("Abilities")]
         [SerializeField] private AbilityConfig[] abilityConfigs;
@@ -25,7 +25,7 @@ namespace Tactics.Characters {
         }
 
         private void registerAbilities() {
-            meleeBehavior = meleeConfig.AttachAbilityBehaviorTo(this.gameObject) as BasicMeleeBehavior;
+            meleeBehavior = meleeConfig.AttachAbilityBehaviorTo(this.gameObject) as BasicAttackBehavior;
             abilityBehaviors = new AbilityBehavior[abilityConfigs.Length];
             for (int i = 0; i < abilityConfigs.Length; i++) {
                 AbilityConfig config = abilityConfigs[i];
@@ -41,6 +41,12 @@ namespace Tactics.Characters {
             if (abilityIndex < 0 && abilityIndex < abilityConfigs.Length)
                 throw new System.Exception("Can't Use Ability: Ability Index must be a valid non-negative number and less than the length of the number of abilities");
             abilityBehaviors[abilityIndex].Use(target);
+        }
+
+        public void Attack_Ability(Vector3 originPos, int abilityIndex) {
+            if (abilityIndex < 0 && abilityIndex < abilityConfigs.Length)
+                throw new System.Exception("Can't Use Ability: Ability Index must be a valid non-negative number and less than the length of the number of abilities");
+            abilityBehaviors[abilityIndex].Use(originPos);
         }
 
         public HashSet<Character> GetTargets_BasicMelee() {
@@ -65,13 +71,24 @@ namespace Tactics.Characters {
             return abilityConfigs;
         }
 
-        // Resets targets for all abilities
+        // Resets targets for all abilities if the ability's targets are only dependent on the characters's current position
         public void ResetTargets() {
             meleeBehavior.ResetTargetsInRange();
             foreach (AbilityBehavior ability in abilityBehaviors) {
-                ability.ResetTargetsInRange();
+                // If the ability is AOE, the range will get resetted from the mouse through the player controller
+                if (!ability.IsAOE) { 
+                    ability.ResetTargetsInRange();
+                }
             }
         }
+
+        public void ResetTargetsForAOEAbility(int abilityIndex, Vector3 newOrigin) {
+            if (!abilityBehaviors[abilityIndex].IsAOE)
+                throw new System.Exception("Resetting targets for non-AOE ability when ResetTargets already does that");
+            abilityBehaviors[abilityIndex].ResetTargetsInRange(newOrigin);
+        }
+
+        // Resets targets for the chosen ability: 
 
         public Weapon GetCurrentWeapon() {
             return weaponInUse;

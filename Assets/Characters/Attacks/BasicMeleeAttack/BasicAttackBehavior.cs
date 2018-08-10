@@ -7,7 +7,7 @@ namespace Tactics.Characters {
 
     public class BasicAttackBehavior : AbilityBehavior {
         
-        protected BasicMeleeConfig config;
+        protected BasicAttackConfig config;
         public int GetDamage() {
             return (config.UseWeaponDmg ? weaponInUse.weaponDamage : 0) + config.GetAdditionalDmg; 
         }
@@ -16,7 +16,7 @@ namespace Tactics.Characters {
         }
 
         void Start() {
-            config = abilityConfig as BasicMeleeConfig;
+            config = abilityConfig as BasicAttackConfig;
         }
 
         // TODO: Consider changing weaponForAnimation to a bool in the config
@@ -28,6 +28,7 @@ namespace Tactics.Characters {
             StartCoroutine(delayedDamage(target, .5f));
         }
 
+        // AnotherOrigin variable has no effect on this function
         public override void ResetTargetsInRange() {
             string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);

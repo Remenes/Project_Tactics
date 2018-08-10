@@ -20,6 +20,7 @@ namespace Tactics.Characters {
         protected Weapon weaponInUse;
 
         protected AbilityConfig abilityConfig;
+        public bool IsAOE { get { return abilityConfig.IsAOE; } }
 
         protected HashSet<Character> targetsInRange;
 
@@ -33,12 +34,19 @@ namespace Tactics.Characters {
             OBSTACLE_LAYER_MASK = 1 << OBSTACLE_LAYER;
         }
     
+        //TODO change to abstracts so behaviours need both
+
         //TODO maybe change this to IEnumerator so that time can be managed better
         /// <summary>
         /// 
         /// </summary>
         /// <param name="weapon"> Pass in a weapon if you need to change animation to be with the weapon </param>
-        public abstract void Use(Character target, Weapon weaponForAnimation = null);
+        public virtual void Use(Character target, Weapon weaponForAnimation = null) {
+            throw new System.Exception("Using an ability with target as a parameter, but no target specified");
+        }
+        public virtual void Use(Vector3 originPos, Weapon weaponForAnimation = null) {
+            throw new System.Exception("Using an ability with an originPos as a parameter, but no origin position specified");
+        }
 
         protected void overrideAttackAnimation(AnimationClip anotherAnimation = null) {
             animator.runtimeAnimatorController = character.GetOverrideController();
@@ -46,7 +54,11 @@ namespace Tactics.Characters {
         }
         
         protected void lookAtTarget(Transform target) {
-            Vector3 lookAtPos = target.transform.position;
+            lookAtTarget(target.position);
+        }
+
+        protected void lookAtTarget(Vector3 targetPos) {
+            Vector3 lookAtPos = targetPos;
             lookAtPos.y = transform.position.y;
             transform.LookAt(lookAtPos);
         }
@@ -66,9 +78,16 @@ namespace Tactics.Characters {
             return targetsInRange;
         }
 
-        // Sets the targets in range for this ability. This is so repeated calls of the getter will be quick, so call this whenever a character changes cell location
-        public abstract void ResetTargetsInRange();
+        // Only one reset target function needs to be overriden: TODO: change to abstracts and that behaviours require both
 
+        // Sets the targets in range for this ability. This is so repeated calls of the getter will be quick, so call this whenever a character changes cell location
+        public virtual void ResetTargetsInRange() {
+            throw new System.Exception("No default ResetTargets implemented");
+        }
+        // Sets the targets in range for this ability using another origin position. This is so repeated calls of the getter will be quick, so call this whenever a character changes cell location
+        public virtual void ResetTargetsInRange(Vector3 otherOriginPosition) {
+            throw new System.Exception("No ResetTargets implemented for another origin position");
+        }
     }
 
 }

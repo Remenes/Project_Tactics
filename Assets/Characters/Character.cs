@@ -262,7 +262,13 @@ namespace Tactics.Characters {
             weaponSystem.Attack_Ability(target, abilityIndex);
             yield return new WaitForSeconds(1.5f);
         }
-        
+
+        private IEnumerator useAbility(Vector3 originPos, int abilityIndex) {
+            characterState = State.ATTACKING;
+            weaponSystem.Attack_Ability(originPos, abilityIndex);
+            yield return new WaitForSeconds(1.5f);
+        }
+
         public HashSet<Character> GetTargetsInRange() {
             return weaponSystem.GetTargets_BasicMelee();
         }
@@ -325,6 +331,15 @@ namespace Tactics.Characters {
             int numPointsNeeded = GetAbilityConfig(abilityIndex).GetActionPointsNeeded();
             numActionsLeft -= numPointsNeeded;
             actionQueue.QueueAction(useAbility(target, abilityIndex), currentCellAsList(), ActionType.ACTION, numPointsNeeded);
+        }
+
+        public void QueueAbilityUse(Vector3 originOfAbility, int abilityIndex) {
+            if (!HasActionPointsForAbility(abilityIndex))
+                throw new System.Exception("Queuing Ability Error: Trying to attack when not enough moves are available");
+            print("Queuing use ability " + abilityIndex + ", at position: " + originOfAbility);
+            int numPointsNeeded = GetAbilityConfig(abilityIndex).GetActionPointsNeeded();
+            numActionsLeft -= numPointsNeeded;
+            actionQueue.QueueAction(useAbility(originOfAbility, abilityIndex), currentCellAsList(), ActionType.ACTION, numPointsNeeded);
         }
 
         public void DequeueLastAction() {
@@ -419,5 +434,11 @@ namespace Tactics.Characters {
             weaponSystem.ResetTargets();
         }
         
+        public void ResetTargetsForAOEAbility(int abilityIndex, Vector3 newOrigin) {
+            if (!GetAbilityConfig(abilityIndex).IsAOE)
+                throw new System.Exception("Resetting targets for AOE Ability in Character script when the ability is not AOE");
+            weaponSystem.ResetTargetsForAOEAbility(abilityIndex, newOrigin);
+        }
+
     }
 }

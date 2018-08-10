@@ -7,8 +7,9 @@ namespace Tactics.Characters {
     public abstract class AbilityConfig : ScriptableObject {
 
         [Header("Ability Type")]
-        [SerializeField] private bool isAOE = false;
-        [SerializeField] private bool requiresTarget = true;
+        [SerializeField] protected bool isAOE = false;
+        public bool IsAOE { get { return isAOE; } }
+        //[SerializeField] private bool requiresTarget = true; //TODO make this useful
 
         [Header("Stats Details")]
         [SerializeField] private int actionPointsNeeded = 1;
