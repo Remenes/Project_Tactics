@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using Tactics.Grid;
+
 namespace Tactics.Characters {
 
     public abstract class AbilityBehavior : MonoBehaviour {
@@ -21,6 +23,7 @@ namespace Tactics.Characters {
 
         protected AbilityConfig abilityConfig;
         public bool IsAOE { get { return abilityConfig.IsAOE; } }
+        public bool UseMouseLocation { get { return abilityConfig.UseMouseLocation; } }
 
         protected HashSet<Character> targetsInRange;
 
@@ -44,7 +47,7 @@ namespace Tactics.Characters {
         public virtual void Use(Character target, Weapon weaponForAnimation = null) {
             throw new System.Exception("Using an ability with target as a parameter, but no target specified");
         }
-        public virtual void Use(Vector3 originPos, Weapon weaponForAnimation = null) {
+        public virtual void Use(Cell originPos, Weapon weaponForAnimation = null) {
             throw new System.Exception("Using an ability with an originPos as a parameter, but no origin position specified");
         }
 
@@ -85,7 +88,7 @@ namespace Tactics.Characters {
             throw new System.Exception("No default ResetTargets implemented");
         }
         // Sets the targets in range for this ability using another origin position. This is so repeated calls of the getter will be quick, so call this whenever a character changes cell location
-        public virtual void ResetTargetsInRange(Vector3 otherOriginPosition) {
+        public virtual void ResetTargetsInRange(Cell otherOriginPosition) {
             throw new System.Exception("No ResetTargets implemented for another origin position");
         }
     }

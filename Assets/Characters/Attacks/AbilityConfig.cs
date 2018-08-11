@@ -9,7 +9,10 @@ namespace Tactics.Characters {
         [Header("Ability Type")]
         [SerializeField] protected bool isAOE = false;
         public bool IsAOE { get { return isAOE; } }
-        //[SerializeField] private bool requiresTarget = true; //TODO make this useful
+        [SerializeField] private bool requiresTarget = true;
+        public bool RequiresTarget { get { return requiresTarget; } }
+        [SerializeField] private bool useMouseLocation = false;
+        public bool UseMouseLocation { get { return useMouseLocation; } }
 
         [Header("Stats Details")]
         [SerializeField] private int actionPointsNeeded = 1;

@@ -73,17 +73,17 @@ namespace Tactics.Controller {
         }
 
         private void updatehighlightedCell(Cell newCellLocation) {
-            if (IsUsingAbility() && GetCurrentAbility().IsAOE && highlightedCell != newCellLocation) {
-                updateAOEAbilityTargets(newCellLocation);
+            if (IsUsingAbility() && GetCurrentAbility().UseMouseLocation && highlightedCell != newCellLocation) {
+                updateMouseLocationAbilityTargets(newCellLocation);
             }
             highlightedCell = newCellLocation;
         }
 
         // For when the player is using an ability that requires a new origin via the mouse
-        private void updateAOEAbilityTargets(Cell newCellLocation) {
-            print("Updating AOE ability");
+        private void updateMouseLocationAbilityTargets(Cell newCellLocation) {
+            print("Updating Mouse Location ability");
             //Vector3 topOfCell = newCellLocation.transform.position + Vector3.up * GridSpace.cellSize / 2;
-            ResetTargetsOfCurrentAOEAbility(newCellLocation.transform.position);
+            ResetTargetsOfCurrentMouseLocationAbility(newCellLocation);
         }
 
         // Checks player inputs and perform corresponding tasks 
@@ -141,8 +141,8 @@ namespace Tactics.Controller {
             for (int number = 1; number < 10; number++) {
                 if (Input.GetKeyDown(KeyCode.Alpha0 + number) && number < currentCharacter.GetNumberOfAbilities() + 1 ) {
                     currentAbilityIndex = number - 1;
-                    if (GetCurrentAbility().IsAOE) {
-                        updateAOEAbilityTargets(highlightedCell);
+                    if (GetCurrentAbility().UseMouseLocation) {
+                        updateMouseLocationAbilityTargets(highlightedCell);
                     }
                     PlayerChangedAbilityObservers(currentAbilityIndex);
                     //inputAbilityCommand(currentAbilityIndex);
@@ -174,12 +174,19 @@ namespace Tactics.Controller {
 
         private void inputAbilityCommand(int abilityIndex) {
             Character target = highlightedCell.GetCharacterOnCell();
-            // AOE abilities do not need a specific target
-            if (GetCurrentAbility().IsAOE) {
-                currentCharacter.QueueAbilityUse(highlightedCell.transform.position, abilityIndex);
+            // If the current ability doesn't require a target, use it regardless of where the mouse is
+            if (!GetCurrentAbility().RequiresTarget) {
+                // If the ability uses the origin of the mouse location, however, center it on the mouse location
+                if (GetCurrentAbility().UseMouseLocation) {
+                    currentCharacter.QueueAbilityUse(highlightedCell, abilityIndex);
+                }
+                // Else, use it on the current character's cell
+                else {
+                    currentCharacter.QueueAbilityUse(currentCharacter.GetCellLocation(), abilityIndex);
+                }
             }
-            if (currentCharacter.CanUseAbilitiesOn(target, abilityIndex)) {
-                currentCharacter.QueueAbilityUse(highlightedCell.GetCharacterOnCell(), abilityIndex);
+            else if (currentCharacter.CanUseAbilitiesOn(target, abilityIndex)) {
+                currentCharacter.QueueAbilityUse(target, abilityIndex);
             }
             // Change ability back to not using abilities if they finished all their action points
             if (!currentCharacter.HasActionPoints()) {
@@ -246,10 +253,10 @@ namespace Tactics.Controller {
         }
 
         // Resets the targets of the current AOE ability() {
-        public void ResetTargetsOfCurrentAOEAbility(Vector3 newOrigin) {
+        public void ResetTargetsOfCurrentMouseLocationAbility(Cell newOrigin) {
             if (!IsUsingAbility())
                 throw new System.Exception("Can't reset targets of current chosen ability: no abilities being used");
-            currentCharacter.ResetTargetsForAOEAbility(currentAbilityIndex, newOrigin);
+            currentCharacter.ResetTargetsForDifferentOriginAbility(currentAbilityIndex, newOrigin);
         }
 
 

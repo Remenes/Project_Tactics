@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using Tactics.Grid;
+
 namespace Tactics.Characters {
 
     [RequireComponent(typeof(Character))]
@@ -43,7 +45,7 @@ namespace Tactics.Characters {
             abilityBehaviors[abilityIndex].Use(target);
         }
 
-        public void Attack_Ability(Vector3 originPos, int abilityIndex) {
+        public void Attack_Ability(Cell originPos, int abilityIndex) {
             if (abilityIndex < 0 && abilityIndex < abilityConfigs.Length)
                 throw new System.Exception("Can't Use Ability: Ability Index must be a valid non-negative number and less than the length of the number of abilities");
             abilityBehaviors[abilityIndex].Use(originPos);
@@ -76,15 +78,15 @@ namespace Tactics.Characters {
             meleeBehavior.ResetTargetsInRange();
             foreach (AbilityBehavior ability in abilityBehaviors) {
                 // If the ability is AOE, the range will get resetted from the mouse through the player controller
-                if (!ability.IsAOE) { 
+                if (!ability.UseMouseLocation) { 
                     ability.ResetTargetsInRange();
                 }
             }
         }
 
-        public void ResetTargetsForAOEAbility(int abilityIndex, Vector3 newOrigin) {
-            if (!abilityBehaviors[abilityIndex].IsAOE)
-                throw new System.Exception("Resetting targets for non-AOE ability when ResetTargets already does that");
+        public void ResetTargetsForDifferentOriginAbility(int abilityIndex, Cell newOrigin) {
+            if (!abilityConfigs[abilityIndex].UseMouseLocation)
+                throw new System.Exception("Resetting targets for ability using mouse location when UseMouseLocation isn't a feature");
             abilityBehaviors[abilityIndex].ResetTargetsInRange(newOrigin);
         }
 

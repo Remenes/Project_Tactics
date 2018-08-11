@@ -3,24 +3,39 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+using Tactics.Grid;
+
 namespace Tactics.Characters {
 
     public class BasicAOEBehavior : BasicAttackBehavior {
         
-        public override void Use(Vector3 targetPos, Weapon weaponForAnimation = null) {
+        public override void Use(Cell targetPos, Weapon weaponForAnimation = null) {
             ResetTargetsInRange(targetPos);
             overrideAnimationWithWeapon(weaponForAnimation);
-            lookAtTarget(targetPos);
+            lookAtTarget(targetPos.transform.position);
             animator.SetTrigger(AttackTrigger);
-            StartCoroutine(delayedAOEDamage(targetPos, .5f));
+            StartCoroutine(delayedAOEDamage(targetPos.transform.position, .5f));
         }
 
-        public override void ResetTargetsInRange(Vector3 originOfAttack) {
+        public override void Use(Character target, Weapon weaponForAnimation = null) {
+            Use(target.GetCellLocation(), weaponForAnimation);
+        }
+
+        public override void ResetTargetsInRange() {
+            ResetTargetsInRange(character.GetCellLocation());
+        }
+
+        public override void ResetTargetsInRange(Cell cellOriginOfAttack) {
             string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
             float weaponRange = GetRange();
+            Vector3 originOfAttack = cellOriginOfAttack.transform.position;
 
             targetsInRange.Clear();
+
+            Character characterOnCell = cellOriginOfAttack.GetCharacterOnCell();
+            if (config.RequiresTarget && config.UseMouseLocation && !(characterOnCell && characterOnCell.CompareTag(oppositeTeamTag)))
+                return;
 
             print("Resetting targets in range with a new origin");
 
@@ -39,7 +54,7 @@ namespace Tactics.Characters {
                 }
             }
         }
-
+        
         private void overrideAnimationWithWeapon(Weapon weaponForAnimation) {
             if (weaponForAnimation == null)
                 overrideAttackAnimation();

@@ -263,7 +263,7 @@ namespace Tactics.Characters {
             yield return new WaitForSeconds(1.5f);
         }
 
-        private IEnumerator useAbility(Vector3 originPos, int abilityIndex) {
+        private IEnumerator useAbility(Cell originPos, int abilityIndex) {
             characterState = State.ATTACKING;
             weaponSystem.Attack_Ability(originPos, abilityIndex);
             yield return new WaitForSeconds(1.5f);
@@ -333,7 +333,7 @@ namespace Tactics.Characters {
             actionQueue.QueueAction(useAbility(target, abilityIndex), currentCellAsList(), ActionType.ACTION, numPointsNeeded);
         }
 
-        public void QueueAbilityUse(Vector3 originOfAbility, int abilityIndex) {
+        public void QueueAbilityUse(Cell originOfAbility, int abilityIndex) {
             if (!HasActionPointsForAbility(abilityIndex))
                 throw new System.Exception("Queuing Ability Error: Trying to attack when not enough moves are available");
             print("Queuing use ability " + abilityIndex + ", at position: " + originOfAbility);
@@ -434,10 +434,10 @@ namespace Tactics.Characters {
             weaponSystem.ResetTargets();
         }
         
-        public void ResetTargetsForAOEAbility(int abilityIndex, Vector3 newOrigin) {
-            if (!GetAbilityConfig(abilityIndex).IsAOE)
-                throw new System.Exception("Resetting targets for AOE Ability in Character script when the ability is not AOE");
-            weaponSystem.ResetTargetsForAOEAbility(abilityIndex, newOrigin);
+        public void ResetTargetsForDifferentOriginAbility(int abilityIndex, Cell newOrigin) {
+            if (!GetAbilityConfig(abilityIndex).UseMouseLocation)
+                throw new System.Exception("Resetting targets for using Mouse Location Ability in Character script when the ability does not use mouse location");
+            weaponSystem.ResetTargetsForDifferentOriginAbility(abilityIndex, newOrigin);
         }
 
     }

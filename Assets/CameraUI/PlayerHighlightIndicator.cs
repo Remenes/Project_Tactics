@@ -178,27 +178,34 @@ namespace Tactics.CameraUI {
             highlightEnemiesInRange();
         }
 
-        private void updateOnUsingAOEAbility(Cell cell) {
-            if (playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().IsAOE) {
-                foreach (Character targetEnemy in playerControl.GetTargetsOfCurrentAbility()) {
-                    switchHighlight(enemyHighlights, targetEnemy, enemyTargetIndicator);
-                }
-            }
-        }
+        //private void updateOnUsingAOEAbility(Cell cell) {
+        //    if (playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().IsAOE) {
+        //        foreach (Character targetEnemy in playerControl.GetTargetsOfCurrentAbility()) {
+        //            switchHighlight(enemyHighlights, targetEnemy, enemyTargetIndicator);
+        //        }
+        //    }
+        //}
 
         private void updateOnCellEntered(Cell cell) {
             Character characterOnCell = cell.GetCharacterOnCell();
             bool cellHasPlayerCharacter = characterOnCell && 
                                           characterOnCell.CompareTag(PlayerController.PLAYER_TAG);
-            bool cellHasTargetButCantAttack = cell.GetCharacterOnCell() &&
-                                          //!currentPlayerCharacter.CanAttackTarget(characterOnCell);
-                                          !playerControl.CurrCharacterCanTarget(characterOnCell);
-
+            
             if (currentPlayerCharacter.FinishedActionQueue() || cellHasPlayerCharacter) {
                 highlightCursorIndicator.SetActive(false);
                 return;
             }
+            updateOnAOEAbilityOrNot(cell);
+            switchToEnemyIndicator(cell);
+            setHighlightActivePosition(highlightCursorIndicator, cell);
+        }
 
+        // Highlights enemies if the player is on an AOE ability of not
+        private void updateOnAOEAbilityOrNot(Cell cell) {
+            Character characterOnCell = cell.GetCharacterOnCell();
+            bool cellHasTargetButCantAttack = cell.GetCharacterOnCell() &&
+                                          //!currentPlayerCharacter.CanAttackTarget(characterOnCell);
+                                          !playerControl.CurrCharacterCanTarget(characterOnCell);
             if (playerControl.IsUsingAbility()) {
                 if (!playerControl.GetCurrentAbility().IsAOE) {
                     if (cellHasTargetButCantAttack) {
@@ -211,8 +218,6 @@ namespace Tactics.CameraUI {
                 }
             }
 
-            switchToEnemyIndicator(cell);
-            setHighlightActivePosition(highlightCursorIndicator, cell);
         }
 
         private void updateOnCellExit(Cell cellLeft) {

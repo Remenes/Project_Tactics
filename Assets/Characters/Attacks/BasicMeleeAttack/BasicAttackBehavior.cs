@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Tactics.Grid;
 using UnityEngine;
 
 namespace Tactics.Characters {
@@ -27,15 +28,22 @@ namespace Tactics.Characters {
             animator.SetTrigger(AttackTrigger);
             StartCoroutine(delayedDamage(target, .5f));
         }
-
-        // AnotherOrigin variable has no effect on this function
+        
         public override void ResetTargetsInRange() {
+            ResetTargetsInRange(character.GetCellLocation());
+        }
+
+        public override void ResetTargetsInRange(Cell otherOriginPosition) {
             string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
             float weaponRange = GetRange();
-            Vector3 thisPosition = character.GetCellLocation().transform.position;
+            Vector3 thisPosition = otherOriginPosition.transform.position;
 
             targetsInRange.Clear();
+
+            Character characterOnCell = otherOriginPosition.GetCharacterOnCell();
+            if (config.RequiresTarget && config.UseMouseLocation && !(characterOnCell && characterOnCell.CompareTag(oppositeTeamTag)))
+                return;
 
             foreach (GameObject characterObj in characters) {
                 Character foundCharacter = characterObj.GetComponent<Character>();
