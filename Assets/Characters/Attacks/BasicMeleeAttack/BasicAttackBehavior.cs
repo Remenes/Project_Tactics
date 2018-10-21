@@ -9,12 +9,6 @@ namespace Tactics.Characters {
     public class BasicAttackBehavior : AbilityBehavior {
         
         protected BasicAttackConfig config;
-        public int GetDamage() {
-            return (config.UseWeaponDmg ? weaponInUse.weaponDamage : 0) + config.GetAdditionalDmg; 
-        }
-        public float GetRange() {
-            return (config.UseWeaponRange ? weaponInUse.weaponRange : 0) + config.GetAdditionalRange; 
-        }
 
         void Start() {
             config = abilityConfig as BasicAttackConfig;

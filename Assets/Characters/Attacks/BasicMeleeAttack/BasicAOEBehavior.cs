@@ -9,6 +9,10 @@ namespace Tactics.Characters {
 
     public class BasicAOEBehavior : BasicAttackBehavior {
         
+        private float AOERange() {
+            return abilityConfig.AOERange;
+        }
+
         public override void Use(Cell targetPos, Weapon weaponForAnimation = null) {
             ResetTargetsInRange(targetPos);
             overrideAnimationWithWeapon(weaponForAnimation);
@@ -28,7 +32,7 @@ namespace Tactics.Characters {
         public override void ResetTargetsInRange(Cell cellOriginOfAttack) {
             string oppositeTeamTag = this.gameObject.CompareTag(ENEMY) ? PLAYER : ENEMY;
             GameObject[] characters = GameObject.FindGameObjectsWithTag(oppositeTeamTag);
-            float weaponRange = GetRange();
+            float weaponRange = AOERange();
             Vector3 originOfAttack = cellOriginOfAttack.transform.position;
 
             targetsInRange.Clear();

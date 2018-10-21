@@ -24,6 +24,15 @@ namespace Tactics.Characters {
         protected AbilityConfig abilityConfig;
         public bool IsAOE { get { return abilityConfig.IsAOE; } }
         public bool UseMouseLocation { get { return abilityConfig.UseMouseLocation; } }
+        public bool RequiresTarget { get { return abilityConfig.RequiresTarget; } }
+
+        public int GetDamage() {
+            return (abilityConfig.UseWeaponDmg ? weaponInUse.weaponDamage : 0) + abilityConfig.GetAdditionalDmg;
+        }
+        public float GetRange() {
+            return (abilityConfig.UseWeaponRange ? weaponInUse.weaponRange : 0) + abilityConfig.GetAdditionalRange;
+        }
+
 
         protected HashSet<Character> targetsInRange;
 

@@ -15,10 +15,11 @@ namespace Tactics.CameraUI {
         [SerializeField] private GameObject playerSelectedIndicator;
         [SerializeField] private GameObject highlightIndicator;
         [SerializeField] private GameObject turnEndedIndicator;
+        [SerializeField] private GameObject aoeHighlightIndicator;
         [SerializeField] private GameObject enemyTargetIndicator;
         [SerializeField] private GameObject enemyInRangeIndicator;
 
-        private GameObject highlightCursorIndicator;
+        private GameObject cursorHighlight;
         // For assosciating a highlight with every enemy/player and can be simply enabled/disabled when the time comes
         private Dictionary<Character, GameObject> enemyHighlights;
         private Dictionary<Character, GameObject> playerHighlights;
@@ -26,15 +27,17 @@ namespace Tactics.CameraUI {
         EnemyController enemyControl;
         PlayerController playerControl;
         Character currentPlayerCharacter;
+        AbilityConfig CurrentAbilityConfig { get { return playerControl.GetCurrentAbility(); } }
 
         private Character targettingEnemy = null;
+
 
         // ---------------------------------------------------------------------------------------
         // ---------------- Helper Functions for changing Highlight -------------------------------
         // ---------------------------------------------------------------------------------------
 
         private void signalAllHighlightDisable() {
-            disableHighlight(highlightCursorIndicator);
+            disableHighlight(cursorHighlight);
             foreach (GameObject highlights in playerHighlights.Values) {
                 disableHighlight(highlights);
             }
@@ -91,7 +94,7 @@ namespace Tactics.CameraUI {
             // If the player had previously targetted an enemy, but is no longer targetting him
             if (targettingEnemy && targettingEnemy != enemyOnCell) {
                 // Re-highlight all enemies
-                highlightEnemiesInAbilityRange();
+                highlightEnemiesInCurrentAbilityRange();
             }
 
             if (cellHasEnemyCharacter) {
@@ -100,21 +103,28 @@ namespace Tactics.CameraUI {
                 if (playerControl.CurrCharacterCanTarget(enemyOnCell)) {
                     if (!targettingEnemy || targettingEnemy != enemyOnCell) {
                         targettingEnemy = cell.GetCharacterOnCell();
-                        switchHighlight(ref highlightCursorIndicator, enemyTargetIndicator);
+                        switchHighlight(ref cursorHighlight, enemyTargetIndicator);
                         disableHighlight(enemyHighlights[enemyOnCell]);
                     }
                 }
                 // Else, show no indicator, but switch the highlight to the normal indicator
                 else {
-                    switchHighlight(ref highlightCursorIndicator, highlightIndicator);
-                    highlightCursorIndicator.SetActive(false);
+                    switchHighlight(ref cursorHighlight, highlightIndicator);
+                    cursorHighlight.SetActive(false);
                 }
             }
-            else {
-                if (targettingEnemy) {
-                    targettingEnemy = null;
-                    switchHighlight(ref highlightCursorIndicator, highlightIndicator);
-                }
+        }
+
+        private void switchToAOEHighlight(int newAbilityIndex, Cell cellPosition) {
+            switchHighlight(ref cursorHighlight, aoeHighlightIndicator);
+            Vector3 newScale = cursorHighlight.transform.localScale;
+            // 2 times the range + 1, since the scale is in diameter and the range is in radius, and 1 is needed for the center
+            newScale.x = newScale.z = playerControl.GetCurrentAbilityAOEEffectRange() * 2 + 1;
+            cursorHighlight.transform.localScale = newScale;
+            // Still highlight enemies in range if it doesn't use mouse location, and then set the cursor highlight to the character
+            if (!CurrentAbilityConfig.UseMouseLocation) {
+                highlightEnemiesInRange(newAbilityIndex);
+                setHighlightActivePosition(cursorHighlight, cellPosition);
             }
         }
 
@@ -152,7 +162,7 @@ namespace Tactics.CameraUI {
         }
 
         // Helper function for general functions. Use this if taking into account the current active abilities to highlight enemies
-        private void highlightEnemiesInAbilityRange() {
+        private void highlightEnemiesInCurrentAbilityRange() {
             highlightEnemiesInRange(playerControl.CurrentAbilityIndex());
         }
 
@@ -190,14 +200,49 @@ namespace Tactics.CameraUI {
             Character characterOnCell = cell.GetCharacterOnCell();
             bool cellHasPlayerCharacter = characterOnCell && 
                                           characterOnCell.CompareTag(PlayerController.PLAYER_TAG);
-            
+            bool cellHasEnemyCharacter = characterOnCell &&
+                                          characterOnCell.CompareTag(EnemyController.ENEMY_TAG);
+
             if (currentPlayerCharacter.FinishedActionQueue() || cellHasPlayerCharacter) {
-                highlightCursorIndicator.SetActive(false);
+                cursorHighlight.SetActive(false);
                 return;
             }
             updateOnAOEAbilityOrNot(cell);
-            switchToEnemyIndicator(cell);
-            setHighlightActivePosition(highlightCursorIndicator, cell);
+            // Don't switch on enemy entered if the current ability is an aoe ability
+            bool usingAOEAbility = playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().IsAOE;
+            bool usingTargettedAbility = playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().RequiresTarget;
+            if (!usingAOEAbility) {
+                switchToEnemyIndicator(cell);
+            }
+            // But if the ability is a target ability also, then show the aoe indicator if there's a target and that target's in range
+            else if (usingTargettedAbility && cellHasEnemyCharacter && currentAbilityInRangeOfCell(cell)) {
+                targettingEnemy = characterOnCell;
+                switchToAOEHighlight(playerControl.CurrentAbilityIndex(), cell);
+            }
+            // Don't set the position if the current ability is AOE and doesn't use mouse location
+            bool usingMouseLocation = playerControl.IsUsingAbility() && playerControl.GetCurrentAbility().UseMouseLocation;
+            if (usingAOEAbility && !usingMouseLocation) {
+                cursorHighlight.SetActive(true);
+                return;
+            }
+            else {
+                setHighlightActivePosition(cursorHighlight, cell);
+            }
+
+            // If the ability is AOE and uses mouse location, make sure the target is in range to show the aoe highlight
+            if (usingAOEAbility && usingMouseLocation) {
+                if (!currentAbilityInRangeOfCell(cell)) {
+                    disableHighlight(cursorHighlight);
+                }
+            }
+
+            if (!cellHasEnemyCharacter) {
+                if (targettingEnemy) {
+                    targettingEnemy = null;
+                    switchHighlight(ref cursorHighlight, highlightIndicator);
+                }
+            }
+
         }
 
         // Highlights enemies if the player is on an AOE ability of not
@@ -209,19 +254,48 @@ namespace Tactics.CameraUI {
             if (playerControl.IsUsingAbility()) {
                 if (!playerControl.GetCurrentAbility().IsAOE) {
                     if (cellHasTargetButCantAttack) {
-                        highlightCursorIndicator.SetActive(false);
+                        cursorHighlight.SetActive(false);
                         return;
                     }
                 }
-                else {
-                    highlightEnemiesInAbilityRange();
+                else if (currentAbilityInRangeOfCell(cell)) {
+                    highlightEnemiesInCurrentAbilityRange();
                 }
             }
+        }
 
+        // Helper for seeing if the current cell is within player range
+        private bool currentAbilityInRangeOfCell(Cell cell) {
+            int currentAbilityIndex = playerControl.CurrentAbilityIndex();
+            return playerControl.IsUsingAbility() && currentPlayerCharacter.InAbilityRangeOfTarget(cell, currentAbilityIndex);
+        }
+
+        // Update when the player changes abilities
+        private void updateOnPlayerChangeAbilities(int newAbilityIndex) {
+            // Reset the cursor highlight when the player changes ability
+            switchHighlight(ref cursorHighlight, highlightIndicator);
+            // Re-update normal targets if player changed to basic attack
+            if (!playerControl.IsUsingAbility()) {
+                highlightEnemiesInRange();
+                return;
+            }
+            AbilityConfig currentAbilityConfig = currentPlayerCharacter.GetAbilityConfig(newAbilityIndex);
+
+            // Highlight Enemies in Range initially only if the ability requires a target
+            if (currentAbilityConfig.RequiresTarget) {
+                highlightEnemiesInRange(newAbilityIndex);
+            }
+            // Otherwise, check if the ability is an AOE, and if it is, show the aoe ability indicator
+            else if (currentAbilityConfig.IsAOE) {
+                switchToAOEHighlight(newAbilityIndex, currentPlayerCharacter.GetCellLocation());
+            }
         }
 
         private void updateOnCellExit(Cell cellLeft) {
-             highlightCursorIndicator.SetActive(false);
+            // Don't deactivate highlight if the ability is AOE and doesn't UseMouseLocation
+            if (playerControl.IsUsingAbility() && CurrentAbilityConfig.IsAOE && !CurrentAbilityConfig.UseMouseLocation)
+                return;
+            cursorHighlight.SetActive(false);
         }
 
         private void updateOnPlayerAction() {
@@ -234,7 +308,7 @@ namespace Tactics.CameraUI {
             }
             if (currentPlayerCharacter.FinishedActionQueue()) {
                 // Also reset the highlight for the cursor, just in case they were over an enemy at the time
-                switchHighlight(ref highlightCursorIndicator, highlightIndicator);
+                switchHighlight(ref cursorHighlight, highlightIndicator);
                 switchHighlight(playerHighlights, currentPlayerCharacter, turnEndedIndicator);
             }
             else {
@@ -246,7 +320,11 @@ namespace Tactics.CameraUI {
             }
             signalPlayersReactivateHighlights();
             
-            highlightEnemiesInAbilityRange();
+            highlightEnemiesInCurrentAbilityRange();
+            // If the character is using an aoe ability without mouse location, move it back to where the player is
+            if (playerControl.IsUsingAbility() && CurrentAbilityConfig.IsAOE && !CurrentAbilityConfig.UseMouseLocation) {
+                setHighlightActivePosition(cursorHighlight, currentPlayerCharacter.GetCellLocation());
+            }
             // Let's the cursor refresh itself to remove the highlight for the enemy that the cursor is over
             if (currentPlayerCharacter.HasActionPoints()) {
                 targettingEnemy = null;
@@ -261,7 +339,7 @@ namespace Tactics.CameraUI {
             playerControl.PlayerActionObservers += updateOnPlayerAction;
             playerControl.CharactersFinishedExecutingObservers += signalPlayersReactivateHighlights;
             playerControl.TurnResettedObservers += resetPlayerIndicator;
-            playerControl.PlayerChangedAbilityObservers += highlightEnemiesInRange;
+            playerControl.PlayerChangedAbilityObservers += updateOnPlayerChangeAbilities;
             signalPlayersReactivateHighlights();
         }
 
@@ -272,8 +350,8 @@ namespace Tactics.CameraUI {
         }
 
         private void registerHighlightedObjects() {
-            highlightCursorIndicator = Instantiate(highlightIndicator);
-            highlightCursorIndicator.SetActive(false);
+            cursorHighlight = Instantiate(highlightIndicator);
+            cursorHighlight.SetActive(false);
             registerEnemyHighlights();
             registerPlayerHighlightsAndController();
         }

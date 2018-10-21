@@ -389,6 +389,11 @@ namespace Tactics.Characters {
         public bool InAbilityRangeOfTarget(Character target, int abilityIndex) {
             return GetTargetsUsingAbility(abilityIndex).Contains(target);
         }
+        public bool InAbilityRangeOfTarget(Cell cellTarget, int abilityIndex) {
+            float distanceToTarget = Vector3.Distance(GetCellLocation().transform.position, cellTarget.transform.position);
+            print("Distances: To target: " + distanceToTarget + " | Range: " + weaponSystem.GetRange_Ability(abilityIndex));
+            return distanceToTarget <= weaponSystem.GetRange_Ability(abilityIndex);
+        }
         public bool CanAttackTarget(Character target) {
             return numActionsLeft > 0 && InRangeOfTarget(target);
         }
@@ -405,18 +410,10 @@ namespace Tactics.Characters {
 
         // Getters for the weapon system of this charater
 
-        public AbilityConfig GetAbilityConfig(int abilityIndex) {
-            return weaponSystem.GetAbilityConfig(abilityIndex);
-        }
-
-        public AbilityConfig GetBasicAttackConfig() {
-            return weaponSystem.GetBasicAttackConfig();
-        }
-
-        public int GetNumberOfAbilities() {
-            return weaponSystem.GetAllAbilityConfigs().Length;
-        }
-
+        public AbilityConfig GetAbilityConfig(int abilityIndex) { return weaponSystem.GetAbilityConfig(abilityIndex); }
+        public AbilityConfig GetBasicAttackConfig() { return weaponSystem.GetBasicAttackConfig(); }
+        public int GetNumberOfAbilities() { return weaponSystem.GetAllAbilityConfigs().Length; }
+        
         // ---------------------------------------
         // ---------- Setter Functions -------------
         // ---------------------------------------

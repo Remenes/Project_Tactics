@@ -54,11 +54,13 @@ namespace Tactics.CameraUI {
                 cellMaterial.color = Color.cyan;
             }
 
-            drawCurrentMovementLine(cell);
-            var playerCharacter = playerControl.GetCurrentCharacter();
-            if (playerCharacter.GetPossibleMovementLocations().costToGoThroughNode.ContainsKey(cell)) {
-                
+            if (!playerControl.IsUsingAbility()) {
+                drawCurrentMovementLine(cell);
             }
+            else {
+                drawCurrentMovementLine(playerCharacter.GetCellLocation());
+            }
+            
 
         }
         

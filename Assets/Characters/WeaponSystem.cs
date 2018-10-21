@@ -61,6 +61,26 @@ namespace Tactics.Characters {
             return abilityBehaviors[abilityIndex].GetTargetsInRange();
         }
 
+        public int GetDamage_Ability(int abilityIndex) {
+            if (abilityIndex < 0 && abilityIndex < abilityConfigs.Length)
+                throw new System.Exception("Can't get ability damage: Ability Index must be a valid non-negative number and less than the length of the number of abilities");
+            return abilityBehaviors[abilityIndex].GetDamage();
+        }
+
+        public int GetDamage_Basic() {
+            return meleeBehavior.GetDamage();
+        }
+
+        public float GetRange_Ability(int abilityIndex) {
+            if (abilityIndex < 0 && abilityIndex < abilityConfigs.Length)
+                throw new System.Exception("Can't get ability range: Ability Index must be a valid non-negative number and less than the length of the number of abilities");
+            return abilityBehaviors[abilityIndex].GetRange();
+        }
+
+        public float GetRange_Basic() {
+            return meleeBehavior.GetRange();
+        }
+
         public AbilityConfig GetAbilityConfig(int abilityIndex) {
             return abilityConfigs[abilityIndex];
         }
@@ -72,7 +92,7 @@ namespace Tactics.Characters {
         public AbilityConfig[] GetAllAbilityConfigs() {
             return abilityConfigs;
         }
-
+        
         // Resets targets for all abilities if the ability's targets are only dependent on the characters's current position
         public void ResetTargets() {
             meleeBehavior.ResetTargetsInRange();

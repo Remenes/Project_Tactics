@@ -27,6 +27,7 @@ namespace Tactics.CameraUI {
 
             List<Cell> cellPath = totalPathLink(endLocation);
 
+            // Make the movement line show above the cell
             int numVertices = cellPath.Count;
             movementLine.positionCount = numVertices;
             for (int i = 0; i < numVertices; ++i) {

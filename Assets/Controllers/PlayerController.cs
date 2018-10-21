@@ -176,9 +176,13 @@ namespace Tactics.Controller {
             Character target = highlightedCell.GetCharacterOnCell();
             // If the current ability doesn't require a target, use it regardless of where the mouse is
             if (!GetCurrentAbility().RequiresTarget) {
-                // If the ability uses the origin of the mouse location, however, center it on the mouse location
+                // If the ability uses the origin of the mouse location, however, center it on the mouse location if the ability is within range
+                bool abilityWithinRangeOfMouse = currentCharacter.InAbilityRangeOfTarget(highlightedCell, abilityIndex);
                 if (GetCurrentAbility().UseMouseLocation) {
-                    currentCharacter.QueueAbilityUse(highlightedCell, abilityIndex);
+                    if (abilityWithinRangeOfMouse) {
+                        print("Within range, queueing ability using mouse location");
+                        currentCharacter.QueueAbilityUse(highlightedCell, abilityIndex);
+                    }
                 }
                 // Else, use it on the current character's cell
                 else {
@@ -227,6 +231,11 @@ namespace Tactics.Controller {
         // ----------Getters and Setters for the current Character's selected ability------------
         // --------------------------------------------------------------------------------------
 
+        // Helper for getting te weapon system
+        private WeaponSystem GetWeaponSystem() {
+            return currentCharacter.GetComponent<WeaponSystem>();
+        }
+
         // Call this to see if the current character can target the target character using the ability (or basic attack)
         // that is currently selected.
         public bool CurrCharacterCanTarget(Character target) {
@@ -257,6 +266,27 @@ namespace Tactics.Controller {
             if (!IsUsingAbility())
                 throw new System.Exception("Can't reset targets of current chosen ability: no abilities being used");
             currentCharacter.ResetTargetsForDifferentOriginAbility(currentAbilityIndex, newOrigin);
+        }
+
+        // Gets the current ability damage, whether using basic or an actual ability
+        public int GetCurrentAbilityDamage() {
+            if (!IsUsingAbility())
+                return GetWeaponSystem().GetDamage_Basic();
+            return GetWeaponSystem().GetDamage_Ability(currentAbilityIndex);
+        }
+
+        // Gets the current ability range, whether using basic or an actual ability
+        public float GetCurrentAbilityRange() {
+            if (!IsUsingAbility())
+                return GetWeaponSystem().GetRange_Basic();
+            return GetWeaponSystem().GetRange_Ability(currentAbilityIndex);
+        }
+
+        // Gets the current ability's AOE effect range
+        public float GetCurrentAbilityAOEEffectRange() {
+            if (!IsUsingAbility() && !GetCurrentAbility().IsAOE)
+                throw new System.Exception("Can't get AOe Ability effect range if there's no AOE ability selected");
+            return GetCurrentAbility().AOERange;
         }
 
 
